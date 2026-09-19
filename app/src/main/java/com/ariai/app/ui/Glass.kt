@@ -122,3 +122,49 @@ fun Shutter(
         }
     }
 }
+
+fun glyphShape(kind: Int): Shape = when (kind % 4) {
+    1 -> RoundedCornerShape(8.dp)
+    3 -> RoundedCornerShape(20.dp)
+    else -> CircleShape
+}
+
+@Composable
+fun Glyph(
+    icon: ImageVector,
+    kind: Int,
+    modifier: Modifier = Modifier.size(56.dp),
+    onClick: () -> Unit
+) {
+    val diamond = kind % 4 == 2
+    val shape = glyphShape(kind)
+    Box(
+        modifier.then(if (diamond) Modifier.rotate(45f) else Modifier)
+            .clip(shape)
+            .background(AccentSoft)
+            .border(1.dp, Color.White.copy(alpha = 0.5f), shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, null, tint = Accent, modifier = Modifier.size(22.dp).then(if (diamond) Modifier.rotate(-45f) else Modifier))
+    }
+}
+
+@Composable
+fun HubCard(title: String, hint: String, icon: ImageVector, kind: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(if (kind % 2 == 0) 28.dp else 14.dp)
+    Column(
+        modifier
+            .clip(shape)
+            .background(CardBg.copy(alpha = 0.75f))
+            .border(1.dp, Color.White.copy(alpha = 0.4f), shape)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Glyph(icon, kind, Modifier.size(48.dp), onClick)
+        Spacer(Modifier.height(8.dp))
+        Text(title, color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text(hint, color = Mute, fontSize = 11.sp)
+    }
+}
