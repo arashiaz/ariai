@@ -3,9 +3,6 @@ on:
   push:
   pull_request:
   workflow_dispatch:
-permissions:
-  contents: read
-  issues: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,12 +14,23 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    - name: Install Android SDK
+      run: |
+        set -e
+        SDK=$HOME/android-sdk
+        mkdir -p "$SDK/cmdline-tools"
+        curl -fsSL -o /tmp/cmd.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q /tmp/cmd.zip -d /tmp/cmd
+        mv /tmp/cmd/cmdline-tools "$SDK/cmdline-tools/latest"
+        yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" --licenses >/dev/null
+        "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+        echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+        echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+        echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+        echo "sdk.dir=$SDK" > local.properties
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      id: gradle
       run: |
         set -o pipefail
         ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee gradle-out.txt
@@ -33,23 +41,8 @@ jobs:
         name: gradle-log
         path: gradle-out.txt
         if-no-files-found: ignore
-    - name: Post errors to issue
-      if: failure()
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        {
-          echo "CI failed on \`$GITHUB_SHA\`"
-          echo
-          echo '```'
-          grep -E "e: |FAILED|error:|Unresolved|SDK" gradle-out.txt | head -100 || tail -80 gradle-out.txt
-          echo '```'
-        } > /tmp/body.md
-        gh issue create --title "ci-fail-$GITHUB_RUN_ID" --body-file /tmp/body.md || true
     - name: Upload APK
-      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: AriAi-debug
         path: app/build/outputs/apk/debug/app-debug.apk
-        if-no-files-found: error
