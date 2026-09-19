@@ -69,7 +69,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,6 +91,24 @@ import com.ariai.app.data.AppStore
 @Composable
 fun AriAiApp(vm: AriAiViewModel) {
     val snack = remember { SnackbarHostState() }
+    val ctx = LocalContext.current
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            ctx.contentResolver.openInputStream(uri)?.use { ins ->
+                val bytes = ins.readBytes()
+                val b64 = Base64.encodeToString(if (bytes.size > 350_000) bytes.copyOf(350_000) else bytes, Base64.NO_WRAP)
+                vm.attachImage(b64, "photo")
+            }
+        }
+    }
+    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            val name = uri.lastPathSegment ?: "file"
+            val text = ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()?.take(8000)
+            vm.input = (vm.input + "\n" + (text ?: "[file $name]")).trim()
+            vm.attach(name)
+        }
+    }
     LaunchedEffect(vm.snack) {
         vm.snack?.let { snack.showSnackbar(it); vm.snack = null }
     }
@@ -110,21 +135,21 @@ fun AriAiApp(vm: AriAiViewModel) {
                 Screen.Speech -> SpeechPage(vm)
                 Screen.Mcp -> McpPage(vm)
                 Screen.Statistics -> StatsPage(vm)
-                Screen.SearchService -> SimplePage(vm, "Search Service", "Set up search service")
-                Screen.WebServer -> SimplePage(vm, "Web Server", "Allow you access AriAi via Web")
-                Screen.Backup -> SimplePage(vm, "Data Backup", "Backup and restore app data")
-                Screen.About -> SimplePage(vm, "About", "AriAi · local AI client")
-                Screen.Docs -> SimplePage(vm, "Documentation", "View app usage instructions and help")
-                Screen.Logs -> SimplePage(vm, "Request Logs", "Inspect recent API requests")
+                Screen.SearchService -> SearchPage(vm)
+                Screen.WebServer -> WebPage(vm)
+                Screen.Backup -> BackupPage(vm)
+                Screen.About -> SimplePage(vm, "About", "AriAi is an OpenAI-compatible API client. Add your key in Providers.")
+                Screen.Docs -> SimplePage(vm, "Documentation", "Settings → Providers → Name, Base URL (…/v1), API key, Fetch models. Then chat.")
+                Screen.Logs -> LogsPage(vm)
                 Screen.ChatHistory -> HistoryPage(vm)
                 Screen.SearchChats -> SearchChatsPage(vm)
-                Screen.QuickMessages -> SimplePage(vm, "Quick Messages", "Manage shared quick message templates")
-                Screen.Prompts -> SimplePage(vm, "Prompts", "Manage and use custom prompts")
-                Screen.Skills -> SimplePage(vm, "Agent Skills", "Manage skill packages for AI")
-                Screen.Workspace -> SimplePage(vm, "Workspace", "Manage local working directories")
+                Screen.QuickMessages -> QuickPage(vm)
+                Screen.Prompts -> PromptsPage(vm)
+                Screen.Skills -> SimplePage(vm, "Agent Skills", "Skill packages are injected as extra system instructions via Prompts.")
+                Screen.Workspace -> SimplePage(vm, "Workspace", "Local files can be attached with + → Upload File.")
             }
             if (vm.drawerOpen) Drawer(vm)
-            if (vm.plusOpen) PlusSheet(vm)
+            if (vm.plusOpen) PlusSheet(vm, onPhoto = { pickImage.launch("image/*") }, onFile = { pickFile.launch("*/*") })
             if (vm.providerSheet) ProviderSheet(vm)
             if (vm.mcpImport) ImportMcp(vm)
             vm.mcpDraft?.let { McpEditor(vm, it) }
@@ -179,9 +204,16 @@ private fun Composer(vm: AriAiViewModel) {
     ) {
         BasicTextField(
             value = vm.input,
-            onValueChange = { vm.input = it },
+            onValueChange = { v ->
+                if (vm.flags["send_enter"] == true && v.endsWith("\n")) {
+                    vm.input = v.trimEnd()
+                    vm.send()
+                } else vm.input = v
+            },
             textStyle = TextStyle(color = Ink, fontSize = 16.sp, textAlign = TextAlign.Start),
             cursorBrush = SolidColor(Accent),
+            keyboardOptions = KeyboardOptions(imeAction = if (vm.flags["send_enter"] == true) ImeAction.Send else ImeAction.Default),
+            keyboardActions = KeyboardActions(onSend = { vm.send() }),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             decorationBox = { inner ->
                 if (vm.input.isEmpty()) Text("Chat with AI", color = Mute, fontSize = 16.sp)
@@ -198,7 +230,7 @@ private fun Composer(vm: AriAiViewModel) {
             }
             IconBtn(Icons.Filled.Add) { vm.plusOpen = true }
             Spacer(Modifier.weight(1f))
-            IconBtn(Icons.Filled.Search) { vm.snack = "Search in chat" }
+            IconBtn(Icons.Filled.Notifications) { vm.speakLast() }
             IconBtn(Icons.Filled.Person) { vm.providerSheet = true }
         }
     }
@@ -220,24 +252,21 @@ private fun Bubble(m: ChatMessage) {
 }
 
 @Composable
-private fun PlusSheet(vm: AriAiViewModel) {
+private fun PlusSheet(vm: AriAiViewModel, onPhoto: () -> Unit, onFile: () -> Unit) {
     Overlay({ vm.plusOpen = false }) {
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(Page).padding(20.dp)
         ) {
             Handle()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                PlusTile("Upload File", Icons.Filled.Email) { vm.attach("file") }
-                PlusTile("Photo", Icons.Filled.Star) { vm.attach("photo") }
-                PlusTile("Take Picture", Icons.Filled.Add) { vm.attach("camera") }
+                PlusTile("Upload File", Icons.Filled.Email) { onFile() }
+                PlusTile("Photo", Icons.Filled.Star) { onPhoto() }
+                PlusTile("Take Picture", Icons.Filled.Add) { onPhoto() }
             }
             Spacer(Modifier.height(16.dp))
             SheetRow("Extensions", Icons.Filled.Build) { vm.go(Screen.Extensions) }
             Spacer(Modifier.height(8.dp))
-            SheetRow("Compress History", Icons.Filled.List) {
-                vm.plusOpen = false
-                vm.snack = "History compressed"
-            }
+            SheetRow("Compress History", Icons.Filled.List) { vm.compressHistory() }
         }
     }
 }
@@ -262,16 +291,23 @@ private fun ProviderSheet(vm: AriAiViewModel) {
             Handle()
             SearchBar("Enter model name to search", vm.modelQuery) { vm.modelQuery = it }
             Spacer(Modifier.height(16.dp))
-            val list = vm.providers.filter { it.name.contains(vm.modelQuery, true) || it.model.contains(vm.modelQuery, true) }
-            if (list.isEmpty()) {
+            val models = vm.providers.flatMap { p ->
+                val ids = (if (p.models.isEmpty()) listOf(p.model).filter { it.isNotBlank() } else p.models)
+                ids.map { m -> p to m }
+            }.filter { (p, m) ->
+                val q = vm.modelQuery
+                q.isBlank() || p.name.contains(q, true) || m.contains(q, true)
+            }
+            if (vm.providers.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
                     Text("No available AI providers, please add in settings", color = Mute, fontSize = 15.sp, textAlign = TextAlign.Center)
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(list, key = { it.id }) { p ->
-                        CardRow(p.name, p.model, Icons.Filled.Person, selected = p.id == vm.selectedProviderId) {
+                    items(models, key = { it.first.id + it.second }) { (p, m) ->
+                        CardRow(m, p.name, Icons.Filled.Person, selected = p.id == vm.selectedProviderId && p.model == m) {
                             vm.selectProvider(p.id)
+                            vm.selectModel(m)
                         }
                     }
                 }
@@ -370,18 +406,20 @@ private fun Drawer(vm: AriAiViewModel) {
 @Composable
 private fun SettingsPage(vm: AriAiViewModel) {
     PageScaffold("Settings", onBack = { vm.go(Screen.Chat) }) {
-        Box(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(DangerBg).padding(16.dp)
-        ) {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Please configure API and model", fontWeight = FontWeight.SemiBold, color = DangerInk, fontSize = 16.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Filled.Info, null, tint = DangerInk)
+        if (!vm.configured) {
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(DangerBg).padding(16.dp)
+            ) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Please configure API and model", fontWeight = FontWeight.SemiBold, color = DangerInk, fontSize = 16.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Filled.Info, null, tint = DangerInk)
+                    }
+                    Text("You haven't configured API and model yet, please configure first", color = DangerInk, fontSize = 13.sp, textAlign = TextAlign.End)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Configure", color = Link, fontWeight = FontWeight.Medium, modifier = Modifier.clickable { vm.go(Screen.Providers) })
                 }
-                Text("You haven't configured API and model yet, please configure first", color = DangerInk, fontSize = 13.sp, textAlign = TextAlign.End)
-                Spacer(Modifier.height(8.dp))
-                Text("Configure", color = Link, fontWeight = FontWeight.Medium, modifier = Modifier.clickable { vm.go(Screen.Providers) })
             }
         }
         SectionLabel("General Settings")
@@ -403,7 +441,7 @@ private fun SettingsPage(vm: AriAiViewModel) {
         SectionLabel("Data Settings")
         Group {
             SettingRow("Data Backup", "Backup and restore app data", Icons.Filled.Settings) { vm.go(Screen.Backup) }
-            SettingRow("Storage Management", "files, ${vm.conversations.size} chats", Icons.Filled.Send) { vm.snack = "Cache cleared" }
+            SettingRow("Storage Management", "files, ${vm.conversations.size} chats", Icons.Filled.Send) { vm.clearStorage() }
         }
         SectionLabel("About")
         Group {
@@ -501,13 +539,16 @@ private fun AssistantPage(vm: AriAiViewModel) {
     }) {
         SearchBar("Search assistants", q) { q = it }
         vm.assistants.filter { it.name.contains(q, true) }.forEach { a ->
-            CardRow(a.name, "", Icons.Filled.MoreVert, leading = {
+            var prompt by remember(a.id) { mutableStateOf(a.prompt) }
+            CardRow(a.name, a.prompt.take(40), Icons.Filled.MoreVert, leading = {
                 Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFE91E8C), Color(0xFF8BC34A)))))
             }) {
                 vm.selectedAssistantId = a.id
                 vm.store.setStr("sel_assistant", a.id)
                 vm.go(Screen.Chat)
             }
+            Field("System prompt", prompt) { prompt = it }
+            Text("Save prompt", color = Link, modifier = Modifier.clickable { vm.updateAssistant(a.copy(prompt = prompt)) }.padding(8.dp))
         }
     }
 }
@@ -562,9 +603,10 @@ private fun ModelPick(title: String, hint: String, id: String, vm: AriAiViewMode
     CardRow(title, if (id.isBlank()) "Select Model" else vm.modelName(id), Icons.Filled.Person) { open = !open }
     Text(hint, color = Mute, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp), textAlign = TextAlign.End)
     if (open) {
-        if (vm.providers.isEmpty()) Text("Add a provider first", color = Mute, modifier = Modifier.padding(8.dp))
-        vm.providers.forEach { p ->
-            CardRow(p.name, p.model, Icons.Filled.Check) { onPick(p.id); open = false }
+        val models = vm.allModels()
+        if (models.isEmpty()) Text("Add a provider and fetch models first", color = Mute, modifier = Modifier.padding(8.dp))
+        models.forEach { m ->
+            CardRow(m, "", Icons.Filled.Check) { onPick(m); open = false }
         }
     }
 }
@@ -579,19 +621,33 @@ private fun ProvidersPage(vm: AriAiViewModel) {
         if (vm.providers.isEmpty()) {
             Text("No available AI providers, please add below", color = Mute)
         }
+        Text("OpenAI-compatible Base URL e.g. https://api.openai.com/v1", color = Mute, fontSize = 13.sp)
         vm.providers.forEach { p ->
-            CardRow(p.name, p.model, Icons.Filled.Person) { vm.selectProvider(p.id); vm.go(Screen.Chat) }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardBg).padding(12.dp)) {
+                CardRow(p.name, "${p.model} · ${p.baseUrl}", Icons.Filled.Person, selected = p.id == vm.selectedProviderId) {
+                    vm.selectProvider(p.id)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Text("Fetch models", color = Link, modifier = Modifier.clickable { vm.fetchModels(p.id) }.padding(8.dp))
+                    Text("Test", color = Link, modifier = Modifier.clickable { vm.testProvider(p.id) }.padding(8.dp))
+                    Text("Delete", color = DangerInk, modifier = Modifier.clickable { vm.removeProvider(p.id) }.padding(8.dp))
+                }
+                p.models.take(12).forEach { m ->
+                    Text(m, color = if (m == p.model) Accent else Mute, fontSize = 13.sp, modifier = Modifier.fillMaxWidth().clickable { vm.selectProvider(p.id); vm.selectModel(m) }.padding(4.dp), textAlign = TextAlign.End)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
         }
         SectionLabel("Add provider")
         Field("Name", name) { name = it }
         Field("Base URL", url) { url = it }
-        Field("Model id", model) { model = it }
+        Field("Model id (optional)", model) { model = it }
         Field("API key", key) { key = it }
-        PrimaryBtn("Save") {
-            if (name.isNotBlank() && model.isNotBlank()) {
+        PrimaryBtn(if (vm.fetching) "Working…" else "Save") {
+            if (name.isNotBlank() && url.isNotBlank() && key.isNotBlank()) {
                 vm.addProvider(name, url, model, key)
                 name = ""; model = ""; key = ""
-            }
+            } else vm.snack = "Name, URL and API key are required"
         }
     }
 }
@@ -601,8 +657,8 @@ private fun SpeechPage(vm: AriAiViewModel) {
     PageScaffold("Speech", onBack = { vm.go(Screen.Settings) }, extra = {
         IconBtn(Icons.Filled.Add) { vm.snack = "Add speech provider" }
     }) {
-        SpeechCard("System TTS", "System TTS", "S", vm.speechId == "sys") { vm.pickSpeech("sys") }
-        SpeechCard("AiHubMix", "OpenAI", "A", vm.speechId == "mix") { vm.pickSpeech("mix") }
+        SpeechCard("System TTS", "Device TextToSpeech", "S", vm.speechId == "sys") { vm.pickSpeech("sys") }
+        PrimaryBtn("Speak last reply") { vm.speakLast() }
         Spacer(Modifier.height(24.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -750,8 +806,8 @@ private fun StatsPage(vm: AriAiViewModel) {
             StatCard("Total Conversations", vm.conversations.size.toString(), Icons.Filled.List, Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("Output Tokens", "0", Icons.Filled.Star, Modifier.weight(1f))
-            StatCard("Input Tokens", "0", Icons.Filled.Star, Modifier.weight(1f))
+            StatCard("Output Tokens", vm.store.int("out_tokens").toString(), Icons.Filled.Star, Modifier.weight(1f))
+            StatCard("Input Tokens", vm.store.int("in_tokens").toString(), Icons.Filled.Star, Modifier.weight(1f))
         }
         StatCard("App Launch Count", vm.store.int("launches").toString(), Icons.Filled.Star, Modifier.fillMaxWidth())
     }
@@ -785,6 +841,80 @@ private fun SearchChatsPage(vm: AriAiViewModel) {
         SearchBar("Search chats", vm.chatQuery) { vm.chatQuery = it }
         vm.conversations.filter { it.title.contains(vm.chatQuery, true) || it.preview.contains(vm.chatQuery, true) }.forEach { c ->
             CardRow(c.title, c.preview, Icons.Filled.Search) { vm.openConv(c.id) }
+        }
+    }
+}
+
+
+@Composable
+private fun SearchPage(vm: AriAiViewModel) {
+    PageScaffold("Search Service", onBack = { vm.go(Screen.Settings) }) {
+        Text("When enabled, DuckDuckGo results are added to the user message before calling the model.", color = Mute, fontSize = 13.sp)
+        Field("Optional API key (unused for DuckDuckGo)", vm.searchKey) { vm.searchKey = it }
+        PrimaryBtn(if (vm.searchOn) "Search is ON — tap to save" else "Enable search") {
+            vm.saveSearch(!vm.searchOn, vm.searchKey)
+        }
+    }
+}
+
+@Composable
+private fun BackupPage(vm: AriAiViewModel) {
+    PageScaffold("Data Backup", onBack = { vm.go(Screen.Settings) }) {
+        Text("Copy JSON to another device, or paste to restore.", color = Mute, fontSize = 13.sp)
+        Field("Backup JSON", vm.backupText) { vm.backupText = it }
+        PrimaryBtn("Refresh export") { vm.backupText = vm.store.exportJson() }
+        PrimaryBtn("Restore from JSON") { vm.doBackupImport(vm.backupText) }
+    }
+}
+
+@Composable
+private fun LogsPage(vm: AriAiViewModel) {
+    PageScaffold("Request Logs", onBack = { vm.go(Screen.Settings) }) {
+        if (vm.logs.isEmpty()) Text("No requests yet. Send a chat or fetch models.", color = Mute)
+        vm.logs.forEach { l ->
+            CardRow("${l.method} ${l.status}", l.url.take(60), Icons.Filled.List) {
+                vm.snack = l.body.take(180)
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickPage(vm: AriAiViewModel) {
+    var txt by remember { mutableStateOf("") }
+    PageScaffold("Quick Messages", onBack = { vm.go(Screen.Extensions) }) {
+        vm.quick.forEach { q ->
+            CardRow(q.text.take(40), "", Icons.Filled.Star) { vm.useQuick(q.text) }
+        }
+        Field("New template", txt) { txt = it }
+        PrimaryBtn("Add") { if (txt.isNotBlank()) { vm.addQuick(txt); txt = "" } }
+    }
+}
+
+@Composable
+private fun PromptsPage(vm: AriAiViewModel) {
+    var title by remember { mutableStateOf("") }
+    var body by remember { mutableStateOf("") }
+    PageScaffold("Prompts", onBack = { vm.go(Screen.Extensions) }) {
+        vm.prompts.forEach { pr ->
+            CardRow(pr.title, pr.body.take(50), Icons.Filled.Info) { vm.usePrompt(pr.body) }
+        }
+        Field("Title", title) { title = it }
+        Field("Prompt body", body) { body = it }
+        PrimaryBtn("Add prompt") {
+            if (title.isNotBlank()) { vm.addPrompt(title, body); title = ""; body = "" }
+        }
+    }
+}
+
+@Composable
+private fun WebPage(vm: AriAiViewModel) {
+    PageScaffold("Web Server", onBack = { vm.go(Screen.Settings) }) {
+        Text("Preference flag only; chats stay on-device.", color = Mute, fontSize = 13.sp)
+        PrimaryBtn(if (vm.webOn) "Enabled" else "Enable flag") {
+            vm.webOn = !vm.webOn
+            vm.store.setBool("web_on", vm.webOn)
+            vm.snack = if (vm.webOn) "Flag on" else "Flag off"
         }
     }
 }

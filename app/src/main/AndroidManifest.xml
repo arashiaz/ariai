@@ -6,6 +6,7 @@
         android:label="AriAi"
         android:icon="@drawable/ic_launcher_fg"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.AriAi">
         <activity
             android:name=".MainActivity"

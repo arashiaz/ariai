@@ -1,6 +1,7 @@
 package com.ariai.app.ui
 
 import android.app.Application
+import android.speech.tts.TextToSpeech
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -12,14 +13,22 @@ import com.ariai.app.data.Assistant
 import com.ariai.app.data.ChatMessage
 import com.ariai.app.data.Conversation
 import com.ariai.app.data.McpServer
+import com.ariai.app.data.PromptItem
 import com.ariai.app.data.Provider
+import com.ariai.app.data.QuickMsg
+import com.ariai.app.data.RequestLog
 import com.ariai.app.data.Screen
-import kotlinx.coroutines.delay
+import com.ariai.app.net.LlmClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.Locale
 
 class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     val store = AppStore(app)
+    private val llm = LlmClient()
+    private var tts: TextToSpeech? = null
 
     var screen by mutableStateOf(Screen.Chat)
     var drawerOpen by mutableStateOf(false)
@@ -33,10 +42,13 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     var assistants by mutableStateOf(store.assistants())
     var mcp by mutableStateOf(store.mcp())
     var conversations by mutableStateOf(store.conversations())
+    var prompts by mutableStateOf(store.prompts())
+    var quick by mutableStateOf(store.quick())
     var current by mutableStateOf<Conversation?>(null)
     var input by mutableStateOf("")
     var sending by mutableStateOf(false)
     var pendingAttach by mutableStateOf<String?>(null)
+    var pendingImage by mutableStateOf<String?>(null)
     var snack by mutableStateOf<String?>(null)
     var selectedProviderId by mutableStateOf(store.str("sel_provider"))
     var selectedAssistantId by mutableStateOf(store.str("sel_assistant", assistants.firstOrNull()?.id ?: ""))
@@ -44,6 +56,12 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     var chatQuery by mutableStateOf("")
     var importJson by mutableStateOf("")
     var userName by mutableStateOf(store.str("user_name", "User"))
+    var logs by mutableStateOf<List<RequestLog>>(emptyList())
+    var backupText by mutableStateOf("")
+    var fetching by mutableStateOf(false)
+    var searchKey by mutableStateOf(store.str("search_key"))
+    var searchOn by mutableStateOf(store.bool("search_on"))
+    var webOn by mutableStateOf(store.bool("web_on"))
 
     val flags = mutableStateMapOf<String, Boolean>().apply {
         listOf(
@@ -76,6 +94,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
 
     val selectedProvider get() = providers.find { it.id == selectedProviderId }
     val selectedAssistant get() = assistants.find { it.id == selectedAssistantId } ?: assistants.firstOrNull()
+    val configured get() = providers.any { it.apiKey.isNotBlank() && it.baseUrl.isNotBlank() }
 
     val greeting: String
         get() {
@@ -89,9 +108,14 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         store.inc("launches")
-        if (store.bool("new_chat_launch", true) && current == null) {
-            /* stay on empty new chat */
+        tts = TextToSpeech(app) { st ->
+            if (st == TextToSpeech.SUCCESS) tts?.language = Locale.getDefault()
         }
+    }
+
+    override fun onCleared() {
+        tts?.shutdown()
+        super.onCleared()
     }
 
     fun toggle(k: String) {
@@ -106,12 +130,15 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
         plusOpen = false
         providerSheet = false
         newMenu = false
+        if (s == Screen.Logs) logs = llm.lastLogs
+        if (s == Screen.Backup) backupText = store.exportJson()
     }
 
     fun openNewChat() {
         current = null
         input = ""
         pendingAttach = null
+        pendingImage = null
         go(Screen.Chat)
     }
 
@@ -123,59 +150,137 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     fun attach(kind: String) {
         pendingAttach = kind
         plusOpen = false
-        snack = when (kind) {
-            "file" -> "File ready to send"
-            "photo" -> "Photo attached"
-            "camera" -> "Picture captured"
-            else -> "Attached"
-        }
+        snack = "$kind attached — send with your message"
+    }
+
+    fun attachImage(b64: String, label: String) {
+        pendingImage = b64
+        pendingAttach = label
+        plusOpen = false
+        snack = "Image attached"
     }
 
     fun send() {
         val text = input.trim()
-        if (text.isBlank() && pendingAttach == null) return
+        if (text.isBlank() && pendingAttach == null && pendingImage == null) return
+        val p = selectedProvider
+        if (p == null || p.apiKey.isBlank() || p.baseUrl.isBlank()) {
+            snack = "Add a provider in Settings first"
+            go(Screen.Providers)
+            return
+        }
         var conv = current
         if (conv == null) {
-            conv = Conversation(AppStore.id(), text.take(32).ifBlank { "New Chat" }, text, System.currentTimeMillis(), emptyList(), selectedProviderId.ifBlank { null })
+            conv = Conversation(AppStore.id(), text.take(32).ifBlank { "New Chat" }, text, System.currentTimeMillis(), emptyList(), p.id)
         }
         val body = buildString {
-            pendingAttach?.let { append("[$it] ") }
-            append(if (text.isBlank()) "Please review the attachment" else text)
+            pendingAttach?.let { if (pendingImage == null) append("[$it] ") }
+            append(if (text.isBlank()) "Please look at this." else text)
         }
-        val user = ChatMessage(AppStore.id(), ChatMessage.Role.User, body, pendingAttach)
-        conv = conv.copy(messages = conv.messages + user, preview = body.take(80), updatedAt = System.currentTimeMillis(), title = if (conv.messages.isEmpty()) body.take(32) else conv.title)
+        val user = ChatMessage(AppStore.id(), ChatMessage.Role.User, body, pendingAttach, pendingImage)
+        conv = conv.copy(
+            messages = conv.messages + user,
+            preview = body.take(80),
+            updatedAt = System.currentTimeMillis(),
+            title = if (conv.messages.isEmpty()) body.take(32) else conv.title,
+            providerId = p.id
+        )
         current = conv
         store.saveConversation(conv)
         refresh()
         input = ""
         pendingAttach = null
-        reply(conv, body)
+        pendingImage = null
+        reply(conv)
     }
 
-    private fun reply(conv: Conversation, q: String) {
+    private fun reply(conv: Conversation) {
+        val p = selectedProvider ?: return
         sending = true
         viewModelScope.launch {
-            delay(450)
-            val model = selectedProvider?.name ?: "AriAi"
-            val ans = ChatMessage(AppStore.id(), ChatMessage.Role.Assistant, "$model:\n${q.take(400)}")
-            val latest = current?.takeIf { it.id == conv.id } ?: conv
-            val done = latest.copy(messages = latest.messages + ans, updatedAt = System.currentTimeMillis())
-            current = done
-            store.saveConversation(done)
-            store.setInt("msg_count", store.int("msg_count") + 2)
-            refresh()
-            sending = false
+            try {
+                val sys = buildSystem()
+                var msgs = conv.messages
+                if (searchOn && msgs.lastOrNull()?.role == ChatMessage.Role.User) {
+                    val q = msgs.last().text
+                    val web = withContext(Dispatchers.IO) { llm.searchDuck(q) }
+                    logs = llm.lastLogs
+                    if (web.isNotBlank()) {
+                        msgs = msgs.dropLast(1) + msgs.last().copy(text = "${msgs.last().text}\n\nWeb search:\n$web")
+                    }
+                }
+                val model = p.model.ifBlank { chatModel.ifBlank { p.models.firstOrNull().orEmpty() } }
+                val answer = withContext(Dispatchers.IO) { llm.chat(p, model, msgs, sys) }
+                logs = llm.lastLogs
+                val bot = ChatMessage(AppStore.id(), ChatMessage.Role.Assistant, answer)
+                val latest = current?.takeIf { it.id == conv.id } ?: conv
+                val done = latest.copy(messages = latest.messages + bot, updatedAt = System.currentTimeMillis())
+                current = done
+                store.saveConversation(done)
+                store.setInt("msg_count", store.int("msg_count") + 2)
+                store.setInt("out_tokens", store.int("out_tokens") + answer.split(" ").size)
+                store.setInt("in_tokens", store.int("in_tokens") + msgs.sumOf { it.text.split(" ").size })
+                if (done.messages.count { it.role == ChatMessage.Role.User } == 1 && fastModel.isNotBlank()) {
+                    titleChat(done, p)
+                }
+                if (flags["notif_gen"] == true) snack = "Reply ready"
+                refresh()
+            } catch (e: Exception) {
+                snack = e.message ?: "Request failed"
+                logs = llm.lastLogs
+            } finally {
+                sending = false
+            }
         }
     }
 
-    fun addProvider(name: String, url: String, model: String, key: String) {
-        val p = Provider(AppStore.id(), name, url, model, key)
+    private fun titleChat(conv: Conversation, p: Provider) {
+        viewModelScope.launch {
+            try {
+                val t = withContext(Dispatchers.IO) {
+                    llm.chat(
+                        p,
+                        fastModel.ifBlank { p.model },
+                        listOf(ChatMessage(AppStore.id(), ChatMessage.Role.User, "Title this chat in 5 words: ${conv.preview}")),
+                        "Reply with only a short title."
+                    )
+                }
+                val latest = current?.takeIf { it.id == conv.id } ?: return@launch
+                val done = latest.copy(title = t.lineSequence().first().take(40))
+                current = done
+                store.saveConversation(done)
+                refresh()
+            } catch (_: Exception) { }
+        }
+    }
+
+    private fun buildSystem(): String = buildString {
+        append(selectedAssistant?.prompt ?: "You are a helpful assistant.")
+        val tools = mcp.filter { it.enabled }
+        if (tools.isNotEmpty()) {
+            append("\nMCP servers the user configured:\n")
+            tools.forEach { append("- ${it.name} (${it.transport}) ${it.url}\n") }
+        }
+    }
+
+    fun addProvider(name: String, url: String, model: String, key: String, headers: String = "") {
+        val p = Provider(AppStore.id(), name.ifBlank { "Provider" }, url.trimEnd('/'), model, key, emptyList(), headers)
         val list = providers + p
         store.saveProviders(list)
         providers = list
         selectedProviderId = p.id
         store.setStr("sel_provider", p.id)
-        snack = "Provider added"
+        if (chatModel.isBlank() && model.isNotBlank()) {
+            chatModel = model
+            store.setStr("chat_model", model)
+        }
+        snack = "Provider saved"
+    }
+
+    fun updateProvider(p: Provider) {
+        val list = providers.map { if (it.id == p.id) p else it }
+        store.saveProviders(list)
+        providers = list
     }
 
     fun removeProvider(id: String) {
@@ -191,12 +296,68 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     fun selectProvider(id: String) {
         selectedProviderId = id
         store.setStr("sel_provider", id)
+        providers.find { it.id == id }?.model?.takeIf { it.isNotBlank() }?.let {
+            chatModel = it
+            store.setStr("chat_model", it)
+        }
         providerSheet = false
     }
 
-    fun addAssistant(name: String) {
-        val a = Assistant(AppStore.id(), name)
+    fun selectModel(model: String) {
+        val p = selectedProvider ?: return
+        updateProvider(p.copy(model = model))
+        chatModel = model
+        store.setStr("chat_model", model)
+        providerSheet = false
+        snack = "Using $model"
+    }
+
+    fun fetchModels(id: String) {
+        val p = providers.find { it.id == id } ?: return
+        fetching = true
+        viewModelScope.launch {
+            try {
+                val models = withContext(Dispatchers.IO) { llm.listModels(p) }
+                logs = llm.lastLogs
+                updateProvider(p.copy(models = models, model = p.model.ifBlank { models.firstOrNull().orEmpty() }))
+                snack = if (models.isEmpty()) "No models returned" else "${models.size} models"
+            } catch (e: Exception) {
+                snack = e.message ?: "Fetch failed"
+                logs = llm.lastLogs
+            } finally {
+                fetching = false
+            }
+        }
+    }
+
+    fun testProvider(id: String) {
+        val p = providers.find { it.id == id } ?: return
+        fetching = true
+        viewModelScope.launch {
+            try {
+                val a = withContext(Dispatchers.IO) {
+                    llm.chat(p, p.model.ifBlank { p.models.firstOrNull().orEmpty() }, listOf(ChatMessage(AppStore.id(), ChatMessage.Role.User, "Say hi in 5 words.")), null)
+                }
+                logs = llm.lastLogs
+                snack = "OK: $a"
+            } catch (e: Exception) {
+                snack = e.message ?: "Test failed"
+                logs = llm.lastLogs
+            } finally {
+                fetching = false
+            }
+        }
+    }
+
+    fun addAssistant(name: String, prompt: String = "You are a helpful assistant.") {
+        val a = Assistant(AppStore.id(), name.ifBlank { "Assistant" }, prompt)
         val list = assistants + a
+        store.saveAssistants(list)
+        assistants = list
+    }
+
+    fun updateAssistant(a: Assistant) {
+        val list = assistants.map { if (it.id == a.id) a else it }
         store.saveAssistants(list)
         assistants = list
     }
@@ -214,7 +375,22 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
             snack = "Paste JSON first"
             return
         }
-        saveMcp(McpServer(AppStore.id(), "Imported MCP", "", true, "http", raw.take(200)))
+        try {
+            val o = org.json.JSONObject(raw)
+            val servers = o.optJSONObject("mcpServers") ?: o
+            val keys = servers.keys()
+            var n = 0
+            while (keys.hasNext()) {
+                val name = keys.next()
+                val s = servers.getJSONObject(name)
+                val url = s.optString("url").ifBlank { s.optString("server") }
+                saveMcp(McpServer(AppStore.id(), name, url, true, s.optString("type", "http"), s.optJSONObject("headers")?.toString() ?: ""))
+                n++
+            }
+            snack = "Imported $n server(s)"
+        } catch (_: Exception) {
+            saveMcp(McpServer(AppStore.id(), "Imported MCP", "", true, "http", raw.take(400)))
+        }
         importJson = ""
         mcpImport = false
     }
@@ -235,21 +411,130 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
         store.setStr("speech", id)
     }
 
+    fun speakLast() {
+        val text = current?.messages?.lastOrNull { it.role == ChatMessage.Role.Assistant }?.text ?: return
+        var t = text
+        if (flags["tts_quotes"] == true) {
+            t = Regex("[\"“](.*?)[\"”]").findAll(text).joinToString(" ") { it.groupValues[1] }.ifBlank { text }
+        }
+        if (flags["tts_brackets"] == true) t = t.replace(Regex("[\\[\\(].*?[\\]\\)]"), "")
+        val rate = 0.5f + ttsSpeed * 0.15f
+        tts?.setSpeechRate(rate)
+        tts?.speak(t, TextToSpeech.QUEUE_FLUSH, null, "ariai")
+        snack = "Speaking"
+    }
+
     fun pickSlot(slot: String, id: String) {
         when (slot) {
-            "chat" -> { chatModel = id; store.setStr("chat_model", id) }
+            "chat" -> { chatModel = id; store.setStr("chat_model", id); selectedProvider?.let { updateProvider(it.copy(model = id)) } }
             "fast" -> { fastModel = id; store.setStr("fast_model", id) }
             "tr" -> { translateModel = id; store.setStr("tr_model", id) }
             "ocr" -> { ocrModel = id; store.setStr("ocr_model", id) }
-            "cmp" -> { compressModel = id; store.setStr("cmp_model", id) }
+            "cmp" -> { compressModel = id; store.setStr("compress_model", id); store.setStr("cmp_model", id) }
         }
         snack = "Model selected"
     }
 
-    fun modelName(id: String) = providers.find { it.id == id }?.name ?: "Select Model"
+    fun modelName(id: String): String {
+        if (id.isBlank()) return "Select Model"
+        providers.forEach { p ->
+            if (p.model == id || p.models.contains(id)) return id
+        }
+        return providers.find { it.id == id }?.model?.ifBlank { it.name } ?: id
+    }
+
+    fun allModels(): List<String> = providers.flatMap { if (it.models.isEmpty()) listOfNotNull(it.model.takeIf { m -> m.isNotBlank() }) else it.models }.distinct()
+
+    fun compressHistory() {
+        val conv = current ?: run { snack = "No chat"; return }
+        val p = selectedProvider ?: run { snack = "No provider"; return }
+        plusOpen = false
+        sending = true
+        viewModelScope.launch {
+            try {
+                val model = compressModel.ifBlank { p.model }
+                val summary = withContext(Dispatchers.IO) {
+                    llm.chat(p, model, conv.messages.takeLast(20), "Summarize this conversation briefly for context.")
+                }
+                val sys = ChatMessage(AppStore.id(), ChatMessage.Role.System, "Summary: $summary")
+                val keep = conv.messages.takeLast(2)
+                val done = conv.copy(messages = listOf(sys) + keep, updatedAt = System.currentTimeMillis())
+                current = done
+                store.saveConversation(done)
+                refresh()
+                snack = "History compressed"
+            } catch (e: Exception) {
+                snack = e.message
+            } finally {
+                sending = false
+            }
+        }
+    }
+
+    fun translateLast() {
+        val last = current?.messages?.lastOrNull() ?: return
+        val p = selectedProvider ?: return
+        input = "Translate to English:\n${last.text}"
+        send()
+        p.model
+    }
+
+    fun addPrompt(title: String, body: String) {
+        val list = prompts + PromptItem(AppStore.id(), title, body)
+        store.savePrompts(list)
+        prompts = list
+    }
+
+    fun usePrompt(body: String) {
+        input = body
+        go(Screen.Chat)
+    }
+
+    fun addQuick(text: String) {
+        val list = quick + QuickMsg(AppStore.id(), text)
+        store.saveQuick(list)
+        quick = list
+    }
+
+    fun useQuick(text: String) {
+        input = text
+        go(Screen.Chat)
+    }
+
+    fun saveSearch(on: Boolean, key: String) {
+        searchOn = on
+        searchKey = key
+        store.setBool("search_on", on)
+        store.setStr("search_key", key)
+        snack = if (on) "Search enabled (DuckDuckGo)" else "Search off"
+    }
+
+    fun doBackupImport(raw: String) {
+        try {
+            store.importJson(raw)
+            providers = store.providers()
+            assistants = store.assistants()
+            conversations = store.conversations()
+            mcp = store.mcp()
+            prompts = store.prompts()
+            quick = store.quick()
+            snack = "Backup restored"
+            go(Screen.Chat)
+        } catch (e: Exception) {
+            snack = "Invalid backup: ${e.message}"
+        }
+    }
+
+    fun clearStorage() {
+        conversations.forEach { store.deleteConversation(it.id) }
+        current = null
+        refresh()
+        snack = "Chats cleared"
+    }
 
     private fun refresh() {
         conversations = store.conversations()
         providers = store.providers()
+        assistants = store.assistants()
     }
 }
