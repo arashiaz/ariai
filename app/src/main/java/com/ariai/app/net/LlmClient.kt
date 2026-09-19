@@ -76,11 +76,11 @@ class LlmClient {
         val (code, body) = raw("GET", url, null, emptyMap())
         log("GET", url, code, body.take(400))
         if (code !in 200..299) return ""
-        val titles = Regex("class=\"result__a\"[^>]*>(.*?)</a>", RegexOption.IGNORE_CASE)
-            .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.filter { it.isNotBlank() }.take(5)
-        val snips = Regex("class=\"result__snippet\"[^>]*>(.*?)</(?:a|td|div)", RegexOption.IGNORE_CASE)
-            .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.take(5)
-        return titles.zip(snips.toList() + List(5) { "" }).joinToString("\n") { (t, s) -> "- $t: $s" }.ifBlank { "" }
+        val titleList = Regex("class=\"result__a\"[^>]*>(.*?)</a>", RegexOption.IGNORE_CASE)
+            .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.filter { it.isNotBlank() }.take(5).toList()
+        val snipList = Regex("class=\"result__snippet\"[^>]*>(.*?)</(?:a|td|div)", RegexOption.IGNORE_CASE)
+            .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.take(5).toList()
+        return titleList.mapIndexed { i, t -> "- $t: ${snipList.getOrNull(i).orEmpty()}" }.joinToString("\n").ifBlank { "" }
     }
 
     private fun post(url: String, p: Provider, json: String): Pair<Int, String> {
