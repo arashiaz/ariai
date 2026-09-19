@@ -178,7 +178,12 @@ private fun ChatPage(vm: AriAiViewModel) {
             } else {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(msgs, key = { it.id }) { Bubble(it) }
-                    if (vm.sending) item { Text("…", color = Mute, modifier = Modifier.padding(8.dp)) }
+                    if (vm.sending) item {
+                        Text("streaming… tap ■ to stop", color = Mute, fontSize = 12.sp, modifier = Modifier.padding(8.dp).clickable { vm.stop() })
+                    }
+                    if (!vm.sending && msgs.any { it.role == ChatMessage.Role.Assistant }) {
+                        item { Text("Regenerate", color = Link, modifier = Modifier.clickable { vm.regenerate() }.padding(8.dp)) }
+                    }
                 }
             }
         }
@@ -627,13 +632,6 @@ private fun ProvidersPage(vm: AriAiViewModel) {
         }
         Text("OpenAI-compatible Base URL e.g. https://api.openai.com/v1", color = Mute, fontSize = 13.sp)
         vm.providers.forEach { p ->
-            Column(Modifier.fillMaremember { mutableStateOf("openai") }
-    PageScaffold("Providers", onBack = { vm.go(Screen.Settings) }) {
-        if (vm.providers.isEmpty()) {
-            Text("No available AI providers, please add below", color = Mute)
-        }
-        Text("OpenAI-compatible Base URL e.g. https://api.openai.com/v1", color = Mute, fontSize = 13.sp)
-        vm.providers.forEach { p ->
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardBg).padding(12.dp)) {
                 CardRow(p.name, "${p.model} · ${p.baseUrl}", Icons.Filled.Person, selected = p.id == vm.selectedProviderId) {
                     vm.selectProvider(p.id)
@@ -654,9 +652,16 @@ private fun ProvidersPage(vm: AriAiViewModel) {
         Field("Base URL", url) { url = it }
         Field("Model id (optional)", model) { model = it }
         Field("API key", key) { key = it }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Pill("OpenAI", kind == "openai") { kind = "openai" }
+            Spacer(Modifier.width(6.dp))
+            Pill("Anthropic", kind == "anthropic") { kind = "anthropic" }
+            Spacer(Modifier.width(6.dp))
+            Pill("Gemini", kind == "gemini") { kind = "gemini" }
+        }
         PrimaryBtn(if (vm.fetching) "Working…" else "Save") {
             if (name.isNotBlank() && url.isNotBlank() && key.isNotBlank()) {
-                vm.addProvider(name, url, model, key)
+                vm.addProvider(name, url, model, key, "", kind)
                 name = ""; model = ""; key = ""
             } else vm.snack = "Name, URL and API key are required"
         }
