@@ -62,6 +62,8 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     var searchKey by mutableStateOf(store.str("search_key"))
     var searchOn by mutableStateOf(store.bool("search_on"))
     var webOn by mutableStateOf(store.bool("web_on"))
+    var lastDeleted by mutableStateOf<Conversation?>(null)
+    var rtl by mutableStateOf(store.bool("rtl", false))
 
     val flags = mutableStateMapOf<String, Boolean>().apply {
         listOf(
@@ -72,14 +74,15 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
             "autoscroll" to true,
             "icon_loading" to true,
             "blur" to false,
-            "haptic" to false,
+            "haptic" to true,
             "skip_crop" to true,
             "paste_file" to false,
             "volume_scroll" to false,
             "tts_quotes" to false,
             "tts_brackets" to false,
             "notif_gen" to false,
-            "suggestions" to true
+            "suggestions" to true,
+            "rtl" to false
         ).forEach { (k, d) -> put(k, store.bool(k, d)) }
     }
 
@@ -111,6 +114,21 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
         tts = TextToSpeech(app) { st ->
             if (st == TextToSpeech.SUCCESS) tts?.language = Locale.getDefault()
         }
+        if (!store.bool("onboard_done") && !configured) screen = Screen.Onboarding
+    }
+
+    fun finishOnboard() {
+        store.setBool("onboard_done", true)
+        go(if (configured) Screen.Chat else Screen.Providers)
+    }
+
+    fun tick() {
+        if (flags["haptic"] != true) return
+        try {
+            val v = getApplication<Application>().getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            @Suppress("DEPRECATION")
+            v.vibrate(18)
+        } catch (_: Exception) { }
     }
 
     override fun onCleared() {
@@ -122,6 +140,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
         val v = !(flags[k] ?: false)
         flags[k] = v
         store.setBool(k, v)
+        if (k == "rtl") rtl = v
     }
 
     fun go(s: Screen) {
@@ -165,7 +184,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
         if (text.isBlank() && pendingAttach == null && pendingImage == null) return
         val p = selectedProvider
         if (p == null || p.apiKey.isBlank() || p.baseUrl.isBlank()) {
-            snack = "Add a provider in Settings first"
+            snack = "Add an API key first — open Keys."
             go(Screen.Providers)
             return
         }
@@ -217,9 +236,11 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
                 val mainH = android.os.Handler(android.os.Looper.getMainLooper())
                 val answer = withContext(Dispatchers.IO) {
                     llm.chatStream(p, model, msgs, sys) { delta ->
+                        val first = acc.isEmpty()
                         acc.append(delta)
                         val snap = acc.toString()
                         mainH.post {
+                            if (first) tick()
                             val cur = current?.takeIf { it.id == conv.id } ?: return@post
                             current = cur.copy(messages = cur.messages.map { if (it.id == botId) it.copy(text = snap) else it })
                         }
@@ -242,7 +263,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
                 if (flags["notif_gen"] == true) snack = "Reply ready"
                 refresh()
             } catch (e: Exception) {
-                snack = e.message ?: "Request failed"
+                snack = llm.friendly(e)
                 logs = llm.lastLogs
             } finally {
                 sending = false
@@ -355,7 +376,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
                 updateProvider(p.copy(models = models, model = p.model.ifBlank { models.firstOrNull().orEmpty() }))
                 snack = if (models.isEmpty()) "No models returned" else "${models.size} models"
             } catch (e: Exception) {
-                snack = e.message ?: "Fetch failed"
+                snack = llm.friendly(e)
                 logs = llm.lastLogs
             } finally {
                 fetching = false
@@ -372,9 +393,10 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
                     llm.chat(p, p.model.ifBlank { p.models.firstOrNull().orEmpty() }, listOf(ChatMessage(AppStore.id(), ChatMessage.Role.User, "Say hi in 5 words.")), null)
                 }
                 logs = llm.lastLogs
+                updateProvider(p.copy(lastOk = a.take(80)))
                 snack = "OK: $a"
             } catch (e: Exception) {
-                snack = e.message ?: "Test failed"
+                snack = llm.friendly(e)
                 logs = llm.lastLogs
             } finally {
                 fetching = false

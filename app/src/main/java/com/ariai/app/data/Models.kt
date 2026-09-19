@@ -10,7 +10,8 @@ data class Provider(
     val headers: String = "",
     val kind: String = "openai",
     val temperature: Float = 0.7f,
-    val maxTokens: Int = 4096
+    val maxTokens: Int = 4096,
+    val lastOk: String = ""
 )
 
 data class Assistant(
@@ -44,7 +45,8 @@ data class Conversation(
     val preview: String,
     val updatedAt: Long,
     val messages: List<ChatMessage> = emptyList(),
-    val providerId: String? = null
+    val providerId: String? = null,
+    val pinned: Boolean = false
 )
 
 data class RequestLog(
@@ -62,5 +64,6 @@ enum class Screen {
     Chat, Settings, Preferences, General, Notifications, Theme,
     Assistant, Extensions, ModelSettings, Providers, Speech, Mcp,
     Statistics, SearchService, WebServer, Backup, About, Docs, Logs,
-    ChatHistory, SearchChats, QuickMessages, Prompts, Skills, Workspace
+    ChatHistory, SearchChats, QuickMessages, Prompts, Skills, Workspace,
+    Onboarding, Privacy
 }

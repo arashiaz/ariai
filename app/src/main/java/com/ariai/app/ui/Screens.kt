@@ -67,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import android.Manifest
@@ -139,6 +140,8 @@ fun AriAiApp(vm: AriAiViewModel) {
                     .imePadding()
             ) {
             when (vm.screen) {
+                Screen.Onboarding -> OnboardPage(vm)
+                Screen.Privacy -> SimplePage(vm, "Privacy", "API keys and chats stay on this device. Network calls go only to the base URL you set. AriAi has no account server.")
                 Screen.Chat -> ChatPage(vm)
                 Screen.Settings -> SettingsPage(vm)
                 Screen.Preferences -> PrefsPage(vm)
@@ -155,7 +158,7 @@ fun AriAiApp(vm: AriAiViewModel) {
                 Screen.SearchService -> SearchPage(vm)
                 Screen.WebServer -> WebPage(vm)
                 Screen.Backup -> BackupPage(vm)
-                Screen.About -> SimplePage(vm, "About", "AriAi is an OpenAI-compatible API client. Add your key in Providers.")
+                Screen.About -> SimplePage(vm, "About", "AriAi 1.1 — a bring-your-own-key client. Keys never leave this phone except to the URL you set. Source: github.com/arashiaz/ariai")
                 Screen.Docs -> SimplePage(vm, "Documentation", "Settings → Providers → Name, Base URL (…/v1), API key, Fetch models. Then chat.")
                 Screen.Logs -> LogsPage(vm)
                 Screen.ChatHistory -> HistoryPage(vm)
@@ -182,6 +185,32 @@ fun AriAiApp(vm: AriAiViewModel) {
             SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).padding(16.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun OnboardPage(vm: AriAiViewModel) {
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+        Text("AriAi 1.1", color = Accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Three breaths.", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 28.sp)
+        Spacer(Modifier.height(18.dp))
+        Glass(Modifier.fillMaxWidth().clickable { vm.go(Screen.Providers) }, 22) {
+            Text("1  Key", fontWeight = FontWeight.Bold, color = Accent)
+            Text("Paste your API key on a provider card.", color = Mute)
+        }
+        Spacer(Modifier.height(10.dp))
+        Glass(Modifier.fillMaxWidth().clickable { vm.providerSheet = true; vm.go(Screen.Chat) }, 22) {
+            Text("2  Model", fontWeight = FontWeight.Bold, color = Accent)
+            Text("Pick gpt, Claude, or Gemini.", color = Mute)
+        }
+        Spacer(Modifier.height(10.dp))
+        Glass(Modifier.fillMaxWidth(), 22) {
+            Text("3  Hello", fontWeight = FontWeight.Bold, color = Accent)
+            Text("Send one sentence. Tokens stream in.", color = Mute)
+        }
+        Spacer(Modifier.height(20.dp))
+        PrimaryBtn(if (vm.configured) "Enter the glass room" else "I'll add a key") { vm.finishOnboard() }
+        Text("Privacy", color = Link, modifier = Modifier.padding(top = 12.dp).clickable { vm.go(Screen.Privacy) })
     }
 }
 
@@ -214,8 +243,15 @@ private fun ChatPage(vm: AriAiViewModel) {
                     if (vm.sending) item {
                         Text("streaming… tap ■ to stop", color = Mute, fontSize = 12.sp, modifier = Modifier.padding(8.dp).clickable { vm.stop() })
                     }
-                    if (!vm.sending && msgs.any { it.role == ChatMessage.Role.Assistant }) {
-                        item { Text("Regenerate", color = Link, modifier = Modifier.clickable { vm.regenerate() }.padding(8.dp)) }
+                    if (!vm.sending && msgs.any { it.role == ChatMessage.Role.User }) {
+                        item {
+                            Row {
+                                Text("Edit last", color = Link, modifier = Modifier.clickable { vm.editLastUser() }.padding(8.dp))
+                                if (msgs.any { it.role == ChatMessage.Role.Assistant }) {
+                                    Text("Regenerate", color = Link, modifier = Modifier.clickable { vm.regenerate() }.padding(8.dp))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -487,7 +523,8 @@ private fun SettingsPage(vm: AriAiViewModel) {
             SettingRow("MCP", "Tools", Icons.Filled.Build) { vm.go(Screen.Mcp) }
             SettingRow("Web flag", "", Icons.Filled.Settings) { vm.go(Screen.WebServer) }
             SettingRow("Logs", "", Icons.Filled.List) { vm.go(Screen.Logs) }
-            SettingRow("About", "", Icons.Filled.Info) { vm.go(Screen.About) }
+            SettingRow("About", "v1.1", Icons.Filled.Info) { vm.go(Screen.About) }
+            SettingRow("Privacy", "Keys stay on device", Icons.Filled.Info) { vm.go(Screen.Privacy) }
         }
     }
 }
@@ -582,6 +619,8 @@ private fun AssistantPage(vm: AriAiViewModel) {
             var prompt by remember(a.id) { mutableStateOf(a.prompt) }
             CardRow(a.name, a.prompt.take(40), Icons.Filled.MoreVert, leading = {
                 Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
+            }) {
+                vrGradient(listOf(Accent, Color(0xFFC45C26)))))
             }) {
                 vm.selectedAssistantId = a.id
                 vm.store.setStr("sel_assistant", a.id)
@@ -770,6 +809,7 @@ private fun McpPage(vm: AriAiViewModel) {
             IconBtn(Icons.Filled.Send) { vm.mcpImport = true }
         }
     }) {
+        Text("Names are saved and injected into the system prompt. This build does not speak the MCP wire protocol yet.", color = Mute, fontSize = 13.sp)
         if (vm.mcp.isEmpty()) Text("No MCP servers. Tap + to add.", color = Mute)
         vm.mcp.forEach { s ->
             CardRow(s.name.ifBlank { "Unnamed" }, s.url, Icons.Filled.Build) { vm.mcpDraft = s }
@@ -890,9 +930,14 @@ private fun StatCard(title: String, value: String, icon: ImageVector, modifier: 
 @Composable
 private fun HistoryPage(vm: AriAiViewModel) {
     PageScaffold("Chat History", onBack = { vm.go(Screen.Chat) }) {
+        if (vm.lastDeleted != null) Text("Undo delete", color = Link, modifier = Modifier.clickable { vm.undoDelete() }.padding(8.dp))
         if (vm.conversations.isEmpty()) Text("No conversations", color = Mute)
         vm.conversations.forEach { c ->
-            CardRow(c.title, c.preview, Icons.Filled.Email) { vm.openConv(c.id) }
+            CardRow((if (c.pinned) "★ " else "") + c.title, c.preview, Icons.Filled.Email) { vm.openConv(c.id) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Text(if (c.pinned) "Unpin" else "Pin", color = Link, modifier = Modifier.clickable { vm.pinConv(c.id) }.padding(8.dp))
+                Text("Delete", color = DangerInk, modifier = Modifier.clickable { vm.deleteConv(c.id) }.padding(8.dp))
+            }
         }
     }
 }
@@ -934,8 +979,11 @@ private fun LogsPage(vm: AriAiViewModel) {
     PageScaffold("Request Logs", onBack = { vm.go(Screen.Settings) }) {
         if (vm.logs.isEmpty()) Text("No requests yet. Send a chat or fetch models.", color = Mute)
         vm.logs.forEach { l ->
-            CardRow("${l.method} ${l.status}", l.url.take(60), Icons.Filled.List) {
-                vm.snack = l.body.take(180)
+            val ok = l.status in 200..299
+            Glass(Modifier.fillMaxWidth().padding(vertical = 4.dp), 16) {
+                Text("${l.method}  ${if (ok) "OK" else "Fail"}  ${l.status}", color = if (ok) Accent else DangerInk, fontWeight = FontWeight.SemiBold)
+                Text(l.url.take(80), color = Mute, fontSize = 12.sp)
+                Text(l.body.take(160), color = Ink, fontSize = 12.sp)
             }
         }
     }
@@ -972,7 +1020,7 @@ private fun PromptsPage(vm: AriAiViewModel) {
 @Composable
 private fun WebPage(vm: AriAiViewModel) {
     PageScaffold("Web Server", onBack = { vm.go(Screen.Settings) }) {
-        Text("Preference flag only; chats stay on-device.", color = Mute, fontSize = 13.sp)
+        Text("Honest note: this is only a local preference flag. There is no HTTP server in this build. Chats stay on-device.", color = Mute, fontSize = 13.sp)
         PrimaryBtn(if (vm.webOn) "Enabled" else "Enable flag") {
             vm.webOn = !vm.webOn
             vm.store.setBool("web_on", vm.webOn)
@@ -984,7 +1032,7 @@ private fun WebPage(vm: AriAiViewModel) {
 @Composable
 private fun SimplePage(vm: AriAiViewModel, title: String, body: String) {
     PageScaffold(title, onBack = { vm.go(Screen.Settings) }) {
-        Group { Text(body, color = Mute, modifier = Modifier.padding(16.dp).fillMaxWidth(), textAlign = TextAlign.End) }
+        Group { Text(body, color = Mute, modifier = Modifier.padding(16.dp).fillMaxWidth()) }
         PrimaryBtn("OK") { vm.go(Screen.Settings) }
     }
 }
@@ -1191,5 +1239,8 @@ private fun Pill(t: String, on: Boolean, onClick: () -> Unit) {
         if (on) Icon(Icons.Filled.Check, null, Modifier.size(16.dp), tint = Accent)
         Spacer(Modifier.width(4.dp))
         Text(t, color = Ink, fontSize = 13.sp)
+    }
+}
+ = Ink, fontSize = 13.sp)
     }
 }

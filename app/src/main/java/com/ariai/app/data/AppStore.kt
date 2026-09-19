@@ -44,7 +44,8 @@ class AppStore(context: Context) {
             Provider(
                 o.getString("id"), o.getString("name"), o.optString("baseUrl"),
                 o.optString("model"), o.optString("apiKey"), models, o.optString("headers"),
-                o.optString("kind", "openai"), o.optDouble("temperature", 0.7).toFloat(), o.optInt("maxTokens", 4096)
+                o.optString("kind", "openai"), o.optDouble("temperature", 0.7).toFloat(), o.optInt("maxTokens", 4096),
+                o.optString("lastOk")
             )
         }
         val extra = catalog().filter { c -> list.none { it.id == c.id } }
@@ -93,6 +94,7 @@ class AppStore(context: Context) {
             .put("model", x.model).put("apiKey", x.apiKey)
             .put("models", JSONArray(x.models)).put("headers", x.headers)
             .put("kind", x.kind).put("temperature", x.temperature.toDouble()).put("maxTokens", x.maxTokens)
+            .put("lastOk", x.lastOk)
     }
 
     fun assistants(): List<Assistant> {
@@ -147,9 +149,9 @@ class AppStore(context: Context) {
                     m.optString("image").ifBlank { null }
                 )
             }
-            Conversation(o.getString("id"), o.getString("title"), o.optString("preview"), o.optLong("updatedAt"), msgs, o.optString("providerId").ifBlank { null })
+            Conversation(o.getString("id"), o.getString("title"), o.optString("preview"), o.optLong("updatedAt"), msgs, o.optString("providerId").ifBlank { null }, o.optBoolean("pinned"))
         }
-        return list.sortedByDescending { it.updatedAt }
+        return list.sortedWith(compareByDescending<Conversation> { it.pinned }.thenByDescending { it.updatedAt })
     }
 
     fun saveConversation(c: Conversation) {
@@ -167,7 +169,7 @@ class AppStore(context: Context) {
             )
         }
         JSONObject().put("id", c.id).put("title", c.title).put("preview", c.preview)
-            .put("updatedAt", c.updatedAt).put("messages", msgs).put("providerId", c.providerId ?: "")
+            .put("updatedAt", c.updatedAt).put("messages", msgs).put("providerId", c.providerId ?: "").put("pinned", c.pinned)
     }
 
     private fun <T> parseArr(key: String, map: (JSONObject) -> T): List<T> {
