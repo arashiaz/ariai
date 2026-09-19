@@ -30,8 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.GenericShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -109,7 +109,6 @@ fun Shutter(
             Box(Modifier.fillMaxWidth().height(1.dp).background(Chip))
             Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) { content() }
         } else {
-            // shutter slats
             Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 repeat(3) {
                     Box(
@@ -139,14 +138,18 @@ fun Glyph(
     val diamond = kind % 4 == 2
     val shape = glyphShape(kind)
     Box(
-        modifier.then(if (diamond) Modifier.rotate(45f) else Modifier)
+        modifier
+            .graphicsLayer { if (diamond) rotationZ = 45f }
             .clip(shape)
             .background(AccentSoft)
             .border(1.dp, Color.White.copy(alpha = 0.5f), shape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, tint = Accent, modifier = Modifier.size(22.dp).then(if (diamond) Modifier.rotate(-45f) else Modifier))
+        Icon(
+            icon, null, tint = Accent,
+            modifier = Modifier.size(22.dp).graphicsLayer { if (diamond) rotationZ = -45f }
+        )
     }
 }
 
