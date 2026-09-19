@@ -129,7 +129,8 @@ fun AriAiApp(vm: AriAiViewModel) {
     LaunchedEffect(vm.snack) {
         vm.snack?.let { snack.showSnackbar(it); vm.snack = null }
     }
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    val dir = if (vm.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+    CompositionLocalProvider(LocalLayoutDirection provides dir) {
         Box(Modifier.fillMaxSize()) {
             AuroraBackdrop()
             Box(
@@ -139,8 +140,14 @@ fun AriAiApp(vm: AriAiViewModel) {
                     .navigationBarsPadding()
                     .imePadding()
             ) {
+            val tabScreens = setOf(Screen.Home, Screen.Chat, Screen.Tools, Screen.Profile, Screen.ChatHistory)
+            Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
             when (vm.screen) {
                 Screen.Onboarding -> OnboardPage(vm)
+                Screen.Home -> HomePage(vm)
+                Screen.Tools -> ToolsPage(vm)
+                Screen.Profile -> ProfilePage(vm)
                 Screen.Privacy -> SimplePage(vm, "Privacy", "API keys and chats stay on this device. Network calls go only to the base URL you set. AriAi has no account server.")
                 Screen.Chat -> ChatPage(vm)
                 Screen.Settings -> SettingsPage(vm)
@@ -168,6 +175,9 @@ fun AriAiApp(vm: AriAiViewModel) {
                 Screen.Skills -> SimplePage(vm, "Agent Skills", "Skill packages are injected as extra system instructions via Prompts.")
                 Screen.Workspace -> SimplePage(vm, "Workspace", "Local files can be attached with + → Upload File.")
             }
+            }
+            if (vm.screen in tabScreens) BottomBar(vm)
+            }
             if (vm.drawerOpen) Drawer(vm)
             if (vm.plusOpen) PlusSheet(
                 vm,
@@ -185,6 +195,158 @@ fun AriAiApp(vm: AriAiViewModel) {
             SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).padding(16.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun BottomBar(vm: AriAiViewModel) {
+    val tab = vm.screen
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(28.dp)).background(CardBg.copy(alpha = 0.92f))
+            .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(28.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        NavItem("Home", Icons.Filled.Home, tab == Screen.Home) { vm.go(Screen.Home) }
+        NavItem("Chats", Icons.Filled.Email, tab == Screen.Chat || tab == Screen.ChatHistory) { vm.go(Screen.Chat) }
+        Box(
+            Modifier.size(56.dp).clip(CircleShape).background(Accent).clickable { vm.plusOpen = true; vm.go(Screen.Chat) },
+            contentAlignment = Alignment.Center
+        ) { Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
+        NavItem("Tools", Icons.Filled.Build, tab == Screen.Tools) { vm.go(Screen.Tools) }
+        NavItem("Profile", Icons.Filled.Person, tab == Screen.Profile) { vm.go(Screen.Profile) }
+    }
+}
+
+@Composable
+private fun NavItem(label: String, icon: ImageVector, on: Boolean, click: () -> Unit) {
+    Column(Modifier.clickable(onClick = click).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(icon, null, tint = if (on) Accent else Mute, modifier = Modifier.size(22.dp))
+        Text(label, color = if (on) Accent else Mute, fontSize = 11.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal)
+    }
+}
+
+@Composable
+private fun HomePage(vm: AriAiViewModel) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("AriAi", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text("${vm.greeting}!", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 28.sp)
+                Text("What would you like to do today?", color = Mute, fontSize = 14.sp)
+            }
+            Box(Modifier.size(42.dp).clip(CircleShape).background(AccentSoft).clickable { vm.go(Screen.Settings) }, contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Settings, null, tint = Accent)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ActionTile("Explain", "Simplify complex topics", Icons.Filled.Info, Modifier.weight(1f), 0) {
+                vm.startPrompt("Explain this in simple terms:\n")
+            }
+            ActionTile("Write", "Create content", Icons.Filled.Edit, Modifier.weight(1f), 1) {
+                vm.startPrompt("Write a clear draft about:\n")
+            }
+            ActionTile("Code", "Build and debug", Icons.Filled.Build, Modifier.weight(1f), 2) {
+                vm.startPrompt("Help me write and debug this code:\n")
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        HomeRow("Quick Chat", "Start a new conversation", Icons.Filled.Email) { vm.openNewChat() }
+        HomeRow("Choose a Model", "Select your AI provider", Icons.Filled.Star) { vm.providerSheet = true; vm.go(Screen.Chat) }
+        HomeRow("Explore Tools", "More powerful features", Icons.Filled.List) { vm.go(Screen.Tools) }
+        Spacer(Modifier.height(16.dp))
+        Glass(Modifier.fillMaxWidth().clickable { vm.go(Screen.Providers) }, 22) {
+            Text("Your AI, your keys", fontWeight = FontWeight.SemiBold, color = Ink)
+            Text(if (vm.configured) "Providers ready — tap to manage." else "Add an API key to wake the models.", color = Mute, fontSize = 13.sp)
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun ActionTile(title: String, hint: String, icon: ImageVector, modifier: Modifier, kind: Int, onClick: () -> Unit) {
+    Column(
+        modifier.clip(RoundedCornerShape(22.dp)).background(CardBg.copy(alpha = 0.9f))
+            .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
+            .clickable(onClick = onClick).padding(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Glyph(icon, kind, Modifier.size(48.dp), onClick)
+        Spacer(Modifier.height(8.dp))
+        Text(title, color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text(hint, color = Mute, fontSize = 11.sp, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun HomeRow(title: String, sub: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(18.dp))
+            .background(CardBg.copy(alpha = 0.9f)).clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(AccentSoft), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Accent, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Ink, fontWeight = FontWeight.SemiBold)
+            Text(sub, color = Mute, fontSize = 13.sp)
+        }
+        Text("›", color = Mute, fontSize = 20.sp)
+    }
+}
+
+@Composable
+private fun ToolsPage(vm: AriAiViewModel) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+        Text("Tools", fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+        Text("More than just chat", color = Mute, fontSize = 14.sp)
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HubCard("Image", "Create from text", Icons.Filled.Star, 0, Modifier.weight(1f)) { vm.startPrompt("Describe an image concept I can refine:\n") }
+            HubCard("Vision", "Analyze images", Icons.Filled.Search, 1, Modifier.weight(1f)) { vm.plusOpen = true; vm.go(Screen.Chat) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HubCard("Documents", "Chat with files", Icons.Filled.List, 2, Modifier.weight(1f)) { vm.plusOpen = true; vm.go(Screen.Chat) }
+            HubCard("Web Search", "Live information", Icons.Filled.Home, 3, Modifier.weight(1f)) { vm.go(Screen.SearchService) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HubCard("Speech", "Voice in and out", Icons.Filled.Notifications, 0, Modifier.weight(1f)) { vm.go(Screen.Speech) }
+            HubCard("Prompts", "Ready templates", Icons.Filled.Edit, 1, Modifier.weight(1f)) { vm.go(Screen.Prompts) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HubCard("Playground", "Test models", Icons.Filled.Build, 2, Modifier.weight(1f)) { vm.go(Screen.ModelSettings) }
+            HubCard("MCP", "Tool servers", Icons.Filled.Settings, 3, Modifier.weight(1f)) { vm.go(Screen.Mcp) }
+        }
+    }
+}
+
+@Composable
+private fun ProfilePage(vm: AriAiViewModel) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(CardBg).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(52.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Accent, Color(0xFFB4A8FF)))))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(vm.userName, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Ink, modifier = Modifier.clickable {
+                    vm.setUser(if (vm.userName == "User") "Ari" else "User")
+                })
+                Text("Personal workspace", color = Mute, fontSize = 13.sp)
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        HomeRow("Appearance", vm.colorMode, Icons.Filled.Star) { vm.go(Screen.Theme) }
+        HomeRow("Providers", "Keys and models", Icons.Filled.Person) { vm.go(Screen.Providers) }
+        HomeRow("Chat settings", "Stream, haptics", Icons.Filled.Settings) { vm.go(Screen.Preferences) }
+        HomeRow("Privacy", "Keys stay on device", Icons.Filled.Info) { vm.go(Screen.Privacy) }
+        HomeRow("About", "AriAi 1.1", Icons.Filled.Info) { vm.go(Screen.About) }
     }
 }
 
@@ -217,16 +379,13 @@ private fun OnboardPage(vm: AriAiViewModel) {
 @Composable
 private fun ChatPage(vm: AriAiViewModel) {
     Column(Modifier.fillMaxSize()) {
-        Glass(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), radius = 28) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconBtn(Icons.Filled.Menu) { vm.drawerOpen = true }
-                Column(Modifier.weight(1f)) {
-                    Text("AriAi", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text(vm.current?.title ?: "New conversation", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                }
-                IconBtn(Icons.Filled.List) { vm.go(Screen.ChatHistory) }
-                IconBtn(Icons.Filled.Email) { vm.openNewChat() }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconBtn(Icons.Filled.ArrowBack) { vm.go(Screen.Home) }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Chat", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                Text(vm.selectedProvider?.model?.ifBlank { vm.chatModel } ?: "Pick a model", color = Accent, fontSize = 12.sp, modifier = Modifier.clickable { vm.providerSheet = true })
             }
+            IconBtn(Icons.Filled.Add) { vm.openNewChat() }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val msgs = vm.current?.messages.orEmpty()
@@ -284,7 +443,7 @@ private fun Composer(vm: AriAiViewModel) {
             keyboardActions = KeyboardActions(onSend = { vm.send() }),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             decorationBox = { inner ->
-                if (vm.input.isEmpty()) Text("Chat with AI", color = Mute, fontSize = 16.sp)
+                if (vm.input.isEmpty()) Text("Ask anything...", color = Mute, fontSize = 16.sp)
                 inner()
             }
         )
@@ -309,7 +468,7 @@ private fun Composer(vm: AriAiViewModel) {
 @Composable
 private fun Bubble(m: ChatMessage) {
     val mine = m.role == ChatMessage.Role.User
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.Start else Arrangement.End) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Column(
             Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(20.dp))
                 .background(if (mine) Accent.copy(alpha = 0.18f) else CardBg.copy(alpha = 0.8f))
@@ -317,6 +476,17 @@ private fun Bubble(m: ChatMessage) {
                 .padding(12.dp)
         ) {
             if (m.attachmentName != null) Text(m.attachmentName, color = Accent, fontSize = 12.sp)
+            m.imageBase64?.let { b64 ->
+                val bmp = remember(b64) {
+                    try {
+                        val bytes = Base64.decode(b64, Base64.DEFAULT)
+                        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    } catch (_: Exception) { null }
+                }
+                bmp?.let {
+                    androidx.compose.foundation.Image(it.asImageBitmap(), null, Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).height(160.dp))
+                }
+            }
             MarkdownText(m.text, light = true)
         }
     }
@@ -493,7 +663,7 @@ private fun Drawer(vm: AriAiViewModel) {
 
 @Composable
 private fun SettingsPage(vm: AriAiViewModel) {
-    PageScaffold("Studio", onBack = { vm.go(Screen.Chat) }) {
+    PageScaffold("Settings", onBack = { vm.go(Screen.Home) }) {
         if (!vm.configured) {
             Glass(Modifier.fillMaxWidth(), 20) {
                 Text("Keys still sleeping", fontWeight = FontWeight.SemiBold, color = DangerInk)
@@ -682,21 +852,13 @@ private fun ProvidersPage(vm: AriAiViewModel) {
     var model by remember { mutableStateOf("") }
     var key by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf("openai") }
-    PageScaffold("Providers", onBack = { vm.go(Screen.Settings) }) {
-        if (vm.providers.isEmpty()) {
-            Text("No available AI providers, please add below", color = Mute)
-        }
-        Text("OpenAI-compatible Base URL e.g. https://api.openai.com/v1", color = Mute, fontSize = 13.sp)
+    PageScaffold("AI Providers", onBack = { vm.go(Screen.Home) }) {
+        Text("Connect and use the best models", color = Mute, fontSize = 13.sp)
+        Spacer(Modifier.height(8.dp))
         vm.providers.forEach { p ->
             var key by remember(p.id) { mutableStateOf(p.apiKey) }
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardBg).padding(14.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                        Text(p.name, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 17.sp)
-                        Text(p.kind.uppercase() + " · " + p.baseUrl.removePrefix("https://").take(28), color = Mute, fontSize = 12.sp)
-                        Text(if (p.apiKey.isBlank()) "Add API key to enable" else "Ready · ${p.model}", color = if (p.apiKey.isBlank()) DangerInk else Accent, fontSize = 12.sp)
-                    }
-                    Spacer(Modifier.width(10.dp))
                     Box(
                         Modifier.size(44.dp).clip(CircleShape).background(
                             when (p.kind) {
@@ -707,10 +869,20 @@ private fun ProvidersPage(vm: AriAiViewModel) {
                         ),
                         contentAlignment = Alignment.Center
                     ) { Text(p.name.take(1), color = Color.White, fontWeight = FontWeight.Bold) }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(p.name, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 16.sp)
+                        Text((p.models.take(3).ifEmpty { listOf(p.model) }).filter { it.isNotBlank() }.joinToString(", ").ifBlank { p.baseUrl.take(28) }, color = Mute, fontSize = 12.sp)
+                        if (p.lastOk.isNotBlank()) Text("Last OK · ${p.lastOk.take(40)}", color = Accent, fontSize = 11.sp)
+                    }
+                    Switch(p.enabled && p.apiKey.isNotBlank(), { on ->
+                        if (on && p.apiKey.isBlank()) vm.snack = "Add an API key first"
+                        else vm.setProviderOn(p.id, on)
+                    }, colors = SwitchDefaults.colors(checkedTrackColor = Accent))
                 }
                 Field("API key", key) { key = it }
                 if (key != p.apiKey) {
-                    Text("Save key", color = Link, modifier = Modifier.clickable { vm.updateProvider(p.copy(apiKey = key)); vm.snack = "Key saved" }.padding(8.dp))
+                    Text("Save key", color = Link, modifier = Modifier.clickable { vm.updateProvider(p.copy(apiKey = key, enabled = key.isNotBlank())); vm.snack = "Key saved" }.padding(8.dp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     Text("Use", color = Link, modifier = Modifier.clickable { vm.selectProvider(p.id) }.padding(8.dp))
@@ -1041,13 +1213,12 @@ private fun SimplePage(vm: AriAiViewModel, title: String, body: String) {
 private fun PageScaffold(title: String, onBack: () -> Unit, extra: @Composable () -> Unit = {}, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            extra()
-            Spacer(Modifier.weight(1f))
-            Text(title, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-            Spacer(Modifier.width(8.dp))
             Box(Modifier.size(40.dp).clip(CircleShape).background(CardBg).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
                 Icon(Icons.Filled.ArrowBack, null, tint = Ink)
             }
+            Spacer(Modifier.width(8.dp))
+            Text(title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Ink, modifier = Modifier.weight(1f))
+            extra()
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
             content()
@@ -1112,23 +1283,24 @@ private fun SettingRow(title: String, sub: String, icon: ImageVector, onClick: (
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-            Text(title, color = Ink, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-            if (sub.isNotBlank()) Text(sub, color = Mute, fontSize = 13.sp, textAlign = TextAlign.End)
-        }
+        Icon(icon, null, tint = Accent, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(12.dp))
-        Icon(icon, null, tint = Ink, modifier = Modifier.size(22.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Ink, fontWeight = FontWeight.Medium, fontSize = 16.sp)
+            if (sub.isNotBlank()) Text(sub, color = Mute, fontSize = 13.sp)
+        }
+        Text("›", color = Mute, fontSize = 18.sp)
     }
 }
 
 @Composable
 private fun ToggleRow(title: String, sub: String, key: String, vm: AriAiViewModel) {
     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Switch(vm.flags[key] == true, { vm.toggle(key) }, colors = SwitchDefaults.colors(checkedTrackColor = Accent))
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+        Column(Modifier.weight(1f)) {
             Text(title, color = Ink, fontWeight = FontWeight.Medium)
-            if (sub.isNotBlank()) Text(sub, color = Mute, fontSize = 13.sp, textAlign = TextAlign.End)
+            if (sub.isNotBlank()) Text(sub, color = Mute, fontSize = 13.sp)
         }
+        Switch(vm.flags[key] == true, { vm.toggle(key) }, colors = SwitchDefaults.colors(checkedTrackColor = Accent))
     }
 }
 
@@ -1194,10 +1366,10 @@ private fun Field(hint: String, value: String, onChange: (String) -> Unit) {
         BasicTextField(
             value = value,
             onValueChange = onChange,
-            textStyle = TextStyle(color = Ink, fontSize = 15.sp, textAlign = TextAlign.End),
+            textStyle = TextStyle(color = Ink, fontSize = 15.sp, textAlign = TextAlign.Start),
             modifier = Modifier.fillMaxWidth(),
             decorationBox = { inner ->
-                if (value.isEmpty()) Text(hint, color = Mute, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
+                if (value.isEmpty()) Text(hint, color = Mute, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
                 inner()
             }
         )

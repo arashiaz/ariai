@@ -46,7 +46,17 @@ fun MarkdownText(raw: String, light: Boolean) {
                     )
                 }
             } else {
-                Text(inlineMd(b.text, chip, link), color = ink, fontSize = 15.sp)
+                b.text.lineSequence().forEach { line ->
+                    val t = line.trimStart()
+                    val bullet = t.startsWith("- ") || t.startsWith("* ")
+                    val numbered = t.length > 2 && t[0].isDigit() && t.contains(". ")
+                    Text(
+                        inlineMd(if (bullet) "• " + t.drop(2) else t, chip, link),
+                        color = ink,
+                        fontSize = 15.sp,
+                        modifier = if (bullet || numbered) Modifier.padding(start = 8.dp) else Modifier
+                    )
+                }
             }
         }
     }

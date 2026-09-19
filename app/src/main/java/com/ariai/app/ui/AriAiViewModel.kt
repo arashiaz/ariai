@@ -115,11 +115,18 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
             if (st == TextToSpeech.SUCCESS) tts?.language = Locale.getDefault()
         }
         if (!store.bool("onboard_done") && !configured) screen = Screen.Onboarding
+        else screen = Screen.Home
     }
 
     fun finishOnboard() {
         store.setBool("onboard_done", true)
-        go(if (configured) Screen.Chat else Screen.Providers)
+        go(Screen.Home)
+    }
+
+    fun startPrompt(text: String) {
+        openNewChat()
+        input = text
+        if (configured) send() else go(Screen.Providers)
     }
 
     fun tick() {
@@ -318,7 +325,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun addProvider(name: String, url: String, model: String, key: String, headers: String = "", kind: String = "openai") {
-        val p = Provider(AppStore.id(), name.ifBlank { "Provider" }, url.trimEnd('/'), model, key, emptyList(), headers, kind)
+        val p = Provider(AppStore.id(), name.ifBlank { "Provider" }, url.trimEnd('/'), model, key, emptyList(), headers, kind, enabled = true)
         val list = providers + p
         store.saveProviders(list)
         providers = list
@@ -345,6 +352,12 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
             selectedProviderId = list.firstOrNull()?.id ?: ""
             store.setStr("sel_provider", selectedProviderId)
         }
+    }
+
+    fun setProviderOn(id: String, on: Boolean) {
+        val p = providers.find { it.id == id } ?: return
+        updateProvider(p.copy(enabled = on))
+        if (on) selectProvider(id)
     }
 
     fun selectProvider(id: String) {

@@ -11,7 +11,8 @@ data class Provider(
     val kind: String = "openai",
     val temperature: Float = 0.7f,
     val maxTokens: Int = 4096,
-    val lastOk: String = ""
+    val lastOk: String = "",
+    val enabled: Boolean = false
 )
 
 data class Assistant(

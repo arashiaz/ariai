@@ -24,31 +24,31 @@ data class AriPalette(
 )
 
 private val LightPal = AriPalette(
-    page = Color(0xFFE7F1EE),
-    card = Color(0xF2FFFFFF),
-    ink = Color(0xFF142421),
-    mute = Color(0xFF5F746F),
-    accent = Color(0xFF0F766E),
-    accentSoft = Color(0xFFD1FAF4),
-    chip = Color(0xFFDCEBE6),
-    dangerBg = Color(0xFFFFE4DC),
-    dangerInk = Color(0xFF9A3412),
-    link = Color(0xFF0E7490),
-    section = Color(0xFF0F766E)
+    page = Color(0xFFF5F3FC),
+    card = Color(0xF7FFFFFF),
+    ink = Color(0xFF1A1433),
+    mute = Color(0xFF7A7494),
+    accent = Color(0xFF6D5EF6),
+    accentSoft = Color(0xFFEDEBFF),
+    chip = Color(0xFFEEEAF8),
+    dangerBg = Color(0xFFFFE4EC),
+    dangerInk = Color(0xFFB42318),
+    link = Color(0xFF6D5EF6),
+    section = Color(0xFF6D5EF6)
 )
 
 private val DarkPal = AriPalette(
-    page = Color(0xFF071310),
-    card = Color(0xE6182A26),
-    ink = Color(0xFFE7F4F0),
-    mute = Color(0xFF8AA39C),
-    accent = Color(0xFF2DD4BF),
-    accentSoft = Color(0xFF12352F),
-    chip = Color(0xFF1C2E2A),
-    dangerBg = Color(0xFF3B1D16),
-    dangerInk = Color(0xFFFDBA74),
-    link = Color(0xFF5EEAD4),
-    section = Color(0xFF5EEAD4)
+    page = Color(0xFF0B0718),
+    card = Color(0xE618142C),
+    ink = Color(0xFFF2EEFF),
+    mute = Color(0xFFA39BB8),
+    accent = Color(0xFF8B7CFF),
+    accentSoft = Color(0xFF2A2150),
+    chip = Color(0xFF1C1633),
+    dangerBg = Color(0xFF3B1520),
+    dangerInk = Color(0xFFFF8FAB),
+    link = Color(0xFFB4A8FF),
+    section = Color(0xFFB4A8FF)
 )
 
 val LocalAri = staticCompositionLocalOf { LightPal }

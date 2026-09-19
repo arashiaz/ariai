@@ -45,7 +45,7 @@ class AppStore(context: Context) {
                 o.getString("id"), o.getString("name"), o.optString("baseUrl"),
                 o.optString("model"), o.optString("apiKey"), models, o.optString("headers"),
                 o.optString("kind", "openai"), o.optDouble("temperature", 0.7).toFloat(), o.optInt("maxTokens", 4096),
-                o.optString("lastOk")
+                o.optString("lastOk"), o.optBoolean("enabled", o.optString("apiKey").isNotBlank())
             )
         }
         val extra = catalog().filter { c -> list.none { it.id == c.id } }
@@ -85,6 +85,14 @@ class AppStore(context: Context) {
             Provider(
                 "groq", "Groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", "",
                 listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768")
+            ),
+            Provider(
+                "qwen", "Qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus", "",
+                listOf("qwen-plus", "qwen-turbo", "qwen-max")
+            ),
+            Provider(
+                "mistral", "Mistral", "https://api.mistral.ai/v1", "mistral-large-latest", "",
+                listOf("mistral-large-latest", "mistral-medium-latest", "mistral-small-latest")
             )
         )
     }
@@ -94,7 +102,7 @@ class AppStore(context: Context) {
             .put("model", x.model).put("apiKey", x.apiKey)
             .put("models", JSONArray(x.models)).put("headers", x.headers)
             .put("kind", x.kind).put("temperature", x.temperature.toDouble()).put("maxTokens", x.maxTokens)
-            .put("lastOk", x.lastOk)
+            .put("lastOk", x.lastOk).put("enabled", x.enabled)
     }
 
     fun assistants(): List<Assistant> {

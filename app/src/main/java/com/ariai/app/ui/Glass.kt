@@ -39,8 +39,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun AuroraBackdrop() {
-    val a = Accent.copy(alpha = 0.28f)
-    val b = Color(0xFFC45C26).copy(alpha = 0.18f)
+    val a = Accent.copy(alpha = 0.32f)
+    val b = Color(0xFFB4A8FF).copy(alpha = 0.22f)
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(Page))
         Box(
