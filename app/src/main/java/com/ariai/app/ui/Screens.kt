@@ -41,11 +41,9 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CloudUpload
-import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Extension
@@ -257,7 +255,7 @@ private fun PlusSheet(vm: AriAiViewModel) {
             Spacer(Modifier.height(16.dp))
             SheetRow("Extensions", Icons.Outlined.Extension) { vm.go(Screen.Extensions) }
             Spacer(Modifier.height(8.dp))
-            SheetRow("Compress History", Icons.Outlined.Compress) {
+            SheetRow("Compress History", Icons.Outlined.Archive) {
                 vm.plusOpen = false
                 vm.snack = "History compressed"
             }
@@ -776,7 +774,7 @@ private fun StatsPage(vm: AriAiViewModel) {
             StatCard("Output Tokens", "0", Icons.Outlined.Bolt, Modifier.weight(1f))
             StatCard("Input Tokens", "0", Icons.Outlined.Bolt, Modifier.weight(1f))
         }
-        StatCard("App Launch Count", vm.store.int("launches").toString(), Icons.Outlined.RocketLaunch, Modifier.fillMaxWidth())
+        StatCard("App Launch Count", vm.store.int("launches").toString(), Icons.Outlined.Star, Modifier.fillMaxWidth())
     }
 }
 
