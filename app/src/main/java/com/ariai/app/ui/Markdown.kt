@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun MarkdownText(raw: String, light: Boolean) {
+    val ink = Ink
+    val chip = Chip
+    val link = Link
     val blocks = splitFences(raw)
     Column(Modifier.fillMaxWidth()) {
         blocks.forEach { b ->
@@ -32,24 +35,22 @@ fun MarkdownText(raw: String, light: Boolean) {
                         b.text,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 13.sp,
-                        color = if (light) Ink else ColorOnDark,
+                        color = ink,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (light) Chip else Color(0xFF1E2430))
+                            .background(chip)
                             .padding(10.dp)
                             .horizontalScroll(rememberScrollState())
                     )
                 }
             } else {
-                Text(inlineMd(b.text), color = if (light) Ink else ColorOnDark, fontSize = 15.sp)
+                Text(inlineMd(b.text, chip, link), color = ink, fontSize = 15.sp)
             }
         }
     }
 }
-
-private val ColorOnDark = androidx.compose.ui.graphics.Color(0xFFF2F4F8)
 
 private data class Block(val text: String, val code: Boolean)
 
@@ -64,14 +65,14 @@ private fun splitFences(s: String): List<Block> {
     return out
 }
 
-private fun inlineMd(s: String) = buildAnnotatedString {
+private fun inlineMd(s: String, chip: Color, link: Color) = buildAnnotatedString {
     val regex = Regex("`([^`]+)`|\\*\\*([^*]+)\\*\\*|\\*([^*]+)\\*|\\[([^]]+)]\\(([^)]+)\\)")
     var last = 0
     regex.findAll(s).forEach { m ->
         append(s.substring(last, m.range.first))
         when {
             m.groupValues[1].isNotEmpty() -> {
-                pushStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = Chip))
+                pushStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = chip))
                 append(m.groupValues[1]); pop()
             }
             m.groupValues[2].isNotEmpty() -> {
@@ -83,7 +84,7 @@ private fun inlineMd(s: String) = buildAnnotatedString {
                 append(m.groupValues[3]); pop()
             }
             else -> {
-                pushStyle(SpanStyle(color = Link, textDecoration = TextDecoration.Underline))
+                pushStyle(SpanStyle(color = link, textDecoration = TextDecoration.Underline))
                 append(m.groupValues[4]); pop()
             }
         }

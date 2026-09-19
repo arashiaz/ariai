@@ -210,11 +210,27 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 val model = p.model.ifBlank { chatModel.ifBlank { p.models.firstOrNull().orEmpty() } }
-                val answer = withContext(Dispatchers.IO) { llm.chat(p, model, msgs, sys) }
+                val botId = AppStore.id()
+                val latest0 = current?.takeIf { it.id == conv.id } ?: conv
+                current = latest0.copy(messages = latest0.messages + ChatMessage(botId, ChatMessage.Role.Assistant, ""))
+                val acc = StringBuilder()
+                val mainH = android.os.Handler(android.os.Looper.getMainLooper())
+                val answer = withContext(Dispatchers.IO) {
+                    llm.chatStream(p, model, msgs, sys) { delta ->
+                        acc.append(delta)
+                        val snap = acc.toString()
+                        mainH.post {
+                            val cur = current?.takeIf { it.id == conv.id } ?: return@post
+                            current = cur.copy(messages = cur.messages.map { if (it.id == botId) it.copy(text = snap) else it })
+                        }
+                    }
+                }
                 logs = llm.lastLogs
-                val bot = ChatMessage(AppStore.id(), ChatMessage.Role.Assistant, answer)
                 val latest = current?.takeIf { it.id == conv.id } ?: conv
-                val done = latest.copy(messages = latest.messages + bot, updatedAt = System.currentTimeMillis())
+                val done = latest.copy(
+                    messages = latest.messages.map { if (it.id == botId) it.copy(text = answer.ifBlank { acc.toString() }) else it },
+                    updatedAt = System.currentTimeMillis()
+                )
                 current = done
                 store.saveConversation(done)
                 store.setInt("msg_count", store.int("msg_count") + 2)
@@ -429,7 +445,11 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun speakLast() {
-        val text = current?.messages?.lastOrNull { it.role == ChatMessage.Role.Assistant }?.text ?: return
+        val text = current?.messages?.lastOrNull { it.role == ChatMessage.Role.Assistant }?.text
+        if (text.isNullOrBlank()) {
+            snack = "No reply to speak"
+            return
+        }
         var t = text
         if (flags["tts_quotes"] == true) {
             t = Regex("[\"“](.*?)[\"”]").findAll(text).joinToString(" ") { it.groupValues[1] }.ifBlank { text }

@@ -36,14 +36,55 @@ class AppStore(context: Context) {
         e.apply()
     }
 
-    fun providers(): List<Provider> = parseArr("providers") { o ->
-        val models = mutableListOf<String>()
-        val m = o.optJSONArray("models")
-        if (m != null) for (i in 0 until m.length()) models += m.getString(i)
-        Provider(
-            o.getString("id"), o.getString("name"), o.optString("baseUrl"),
-            o.optString("model"), o.optString("apiKey"), models, o.optString("headers"),
-            o.optString("kind", "openai"), o.optDouble("temperature", 0.7).toFloat(), o.optInt("maxTokens", 4096)
+    fun providers(): List<Provider> {
+        val list = parseArr("providers") { o ->
+            val models = mutableListOf<String>()
+            val m = o.optJSONArray("models")
+            if (m != null) for (i in 0 until m.length()) models += m.getString(i)
+            Provider(
+                o.getString("id"), o.getString("name"), o.optString("baseUrl"),
+                o.optString("model"), o.optString("apiKey"), models, o.optString("headers"),
+                o.optString("kind", "openai"), o.optDouble("temperature", 0.7).toFloat(), o.optInt("maxTokens", 4096)
+            )
+        }
+        val extra = catalog().filter { c -> list.none { it.id == c.id } }
+        return if (list.isEmpty()) {
+            saveProviders(catalog()); catalog()
+        } else if (extra.isNotEmpty()) {
+            val merged = extra + list
+            saveProviders(merged)
+            merged
+        } else list
+    }
+
+    companion object {
+        fun id() = UUID.randomUUID().toString()
+
+        fun catalog() = listOf(
+            Provider(
+                "openai", "OpenAI", "https://api.openai.com/v1", "gpt-4o-mini", "",
+                listOf("gpt-4o", "gpt-4o-mini", "gpt-4.1", "o4-mini", "o3-mini"), kind = "openai"
+            ),
+            Provider(
+                "anthropic", "Anthropic", "https://api.anthropic.com", "claude-3-5-sonnet-latest", "",
+                listOf("claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"), kind = "anthropic"
+            ),
+            Provider(
+                "gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta", "gemini-2.0-flash", "",
+                listOf("gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"), kind = "gemini"
+            ),
+            Provider(
+                "openrouter", "OpenRouter", "https://openrouter.ai/api/v1", "openai/gpt-4o-mini", "",
+                listOf("openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-flash-1.5", "meta-llama/llama-3.1-70b-instruct")
+            ),
+            Provider(
+                "deepseek", "DeepSeek", "https://api.deepseek.com/v1", "deepseek-chat", "",
+                listOf("deepseek-chat", "deepseek-reasoner")
+            ),
+            Provider(
+                "groq", "Groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", "",
+                listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768")
+            )
         )
     }
 
@@ -140,7 +181,4 @@ class AppStore(context: Context) {
         p.edit().putString(key, arr.toString()).apply()
     }
 
-    companion object {
-        fun id() = UUID.randomUUID().toString()
-    }
 }

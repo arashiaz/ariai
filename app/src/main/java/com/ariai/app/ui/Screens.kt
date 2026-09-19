@@ -69,7 +69,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.Manifest
+import android.graphics.Bitmap
 import android.util.Base64
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import java.io.ByteArrayOutputStream
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.KeyboardActions
@@ -108,6 +113,17 @@ fun AriAiApp(vm: AriAiViewModel) {
             vm.input = (vm.input + "\n" + (text ?: "[file $name]")).trim()
             vm.attach(name)
         }
+    }
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bmp ->
+        if (bmp != null) {
+            val os = ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.JPEG, 82, os)
+            val b64 = Base64.encodeToString(os.toByteArray(), Base64.NO_WRAP)
+            vm.attachImage(b64, "camera")
+        }
+    }
+    val camPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) takePhoto.launch(null) else vm.snack = "Camera permission denied"
     }
     LaunchedEffect(vm.snack) {
         vm.snack?.let { snack.showSnackbar(it); vm.snack = null }
@@ -149,7 +165,16 @@ fun AriAiApp(vm: AriAiViewModel) {
                 Screen.Workspace -> SimplePage(vm, "Workspace", "Local files can be attached with + → Upload File.")
             }
             if (vm.drawerOpen) Drawer(vm)
-            if (vm.plusOpen) PlusSheet(vm, onPhoto = { pickImage.launch("image/*") }, onFile = { pickFile.launch("*/*") })
+            if (vm.plusOpen) PlusSheet(
+                vm,
+                onPhoto = { pickImage.launch("image/*") },
+                onCamera = {
+                    if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+                        takePhoto.launch(null)
+                    else camPerm.launch(Manifest.permission.CAMERA)
+                },
+                onFile = { pickFile.launch("*/*") }
+            )
             if (vm.providerSheet) ProviderSheet(vm)
             if (vm.mcpImport) ImportMcp(vm)
             vm.mcpDraft?.let { McpEditor(vm, it) }
@@ -238,7 +263,6 @@ private fun Composer(vm: AriAiViewModel) {
             }
             IconBtn(Icons.Filled.Add) { vm.plusOpen = true }
             Spacer(Modifier.weight(1f))
-            IconBtn(Icons.Filled.Notifications) { vm.speakLast() }
             IconBtn(Icons.Filled.Person) { vm.providerSheet = true }
         }
     }
@@ -260,7 +284,7 @@ private fun Bubble(m: ChatMessage) {
 }
 
 @Composable
-private fun PlusSheet(vm: AriAiViewModel, onPhoto: () -> Unit, onFile: () -> Unit) {
+private fun PlusSheet(vm: AriAiViewModel, onPhoto: () -> Unit, onCamera: () -> Unit, onFile: () -> Unit) {
     Overlay({ vm.plusOpen = false }) {
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(Page).padding(20.dp)
@@ -269,7 +293,7 @@ private fun PlusSheet(vm: AriAiViewModel, onPhoto: () -> Unit, onFile: () -> Uni
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 PlusTile("Upload File", Icons.Filled.Email) { onFile() }
                 PlusTile("Photo", Icons.Filled.Star) { onPhoto() }
-                PlusTile("Take Picture", Icons.Filled.Add) { onPhoto() }
+                PlusTile("Take Picture", Icons.Filled.Add) { onCamera() }
             }
             Spacer(Modifier.height(16.dp))
             SheetRow("Extensions", Icons.Filled.Build) { vm.go(Screen.Extensions) }
@@ -632,20 +656,47 @@ private fun ProvidersPage(vm: AriAiViewModel) {
         }
         Text("OpenAI-compatible Base URL e.g. https://api.openai.com/v1", color = Mute, fontSize = 13.sp)
         vm.providers.forEach { p ->
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardBg).padding(12.dp)) {
-                CardRow(p.name, "${p.model} · ${p.baseUrl}", Icons.Filled.Person, selected = p.id == vm.selectedProviderId) {
-                    vm.selectProvider(p.id)
+            var key by remember(p.id) { mutableStateOf(p.apiKey) }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardBg).padding(14.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text(p.name, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 17.sp)
+                        Text(p.kind.uppercase() + " · " + p.baseUrl.removePrefix("https://").take(28), color = Mute, fontSize = 12.sp)
+                        Text(if (p.apiKey.isBlank()) "Add API key to enable" else "Ready · ${p.model}", color = if (p.apiKey.isBlank()) DangerInk else Accent, fontSize = 12.sp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Box(
+                        Modifier.size(44.dp).clip(CircleShape).background(
+                            when (p.kind) {
+                                "anthropic" -> Color(0xFFD4A574)
+                                "gemini" -> Color(0xFF4285F4)
+                                else -> Accent
+                            }
+                        ),
+                        contentAlignment = Alignment.Center
+                    ) { Text(p.name.take(1), color = Color.White, fontWeight = FontWeight.Bold) }
+                }
+                Field("API key", key) { key = it }
+                if (key != p.apiKey) {
+                    Text("Save key", color = Link, modifier = Modifier.clickable { vm.updateProvider(p.copy(apiKey = key)); vm.snack = "Key saved" }.padding(8.dp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Text("Fetch models", color = Link, modifier = Modifier.clickable { vm.fetchModels(p.id) }.padding(8.dp))
+                    Text("Use", color = Link, modifier = Modifier.clickable { vm.selectProvider(p.id) }.padding(8.dp))
+                    Text("Fetch", color = Link, modifier = Modifier.clickable { vm.fetchModels(p.id) }.padding(8.dp))
                     Text("Test", color = Link, modifier = Modifier.clickable { vm.testProvider(p.id) }.padding(8.dp))
-                    Text("Delete", color = DangerInk, modifier = Modifier.clickable { vm.removeProvider(p.id) }.padding(8.dp))
+                    if (p.id.length > 12) Text("Delete", color = DangerInk, modifier = Modifier.clickable { vm.removeProvider(p.id) }.padding(8.dp))
                 }
-                p.models.take(12).forEach { m ->
-                    Text(m, color = if (m == p.model) Accent else Mute, fontSize = 13.sp, modifier = Modifier.fillMaxWidth().clickable { vm.selectProvider(p.id); vm.selectModel(m) }.padding(4.dp), textAlign = TextAlign.End)
+                p.models.take(10).forEach { m ->
+                    Text(
+                        m,
+                        color = if (m == p.model) Accent else Mute,
+                        fontSize = 13.sp,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (m == p.model) AccentSoft else Color.Transparent).clickable { vm.selectProvider(p.id); vm.selectModel(m) }.padding(6.dp),
+                        textAlign = TextAlign.End
+                    )
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
         }
         SectionLabel("Add provider")
         Field("Name", name) { name = it }
@@ -959,7 +1010,7 @@ private fun PageScaffold(title: String, onBack: () -> Unit, extra: @Composable (
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
             content()
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(56.dp))
         }
     }
 }

@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
-            AriAiTheme {
+            AriAiTheme(vm.colorMode) {
                 AriAiApp(vm)
             }
         }
