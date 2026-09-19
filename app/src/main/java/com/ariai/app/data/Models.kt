@@ -66,5 +66,5 @@ enum class Screen {
     Assistant, Extensions, ModelSettings, Providers, Speech, Mcp,
     Statistics, SearchService, WebServer, Backup, About, Docs, Logs,
     ChatHistory, SearchChats, QuickMessages, Prompts, Skills, Workspace,
-    Onboarding, Privacy
+    Onboarding, Privacy, Home, Tools, Profile
 }
