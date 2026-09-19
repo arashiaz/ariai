@@ -223,10 +223,13 @@ private fun Composer(vm: AriAiViewModel) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             val can = vm.input.isNotBlank() || vm.pendingAttach != null
             Box(
-                Modifier.size(40.dp).clip(CircleShape).background(if (can) Accent else Color(0xFFD8D9DE)).clickable(enabled = can) { vm.send() },
+                Modifier.size(40.dp).clip(CircleShape).background(if (vm.sending) DangerInk else if (can) Accent else Color(0xFFD8D9DE))
+                    .clickable {
+                        if (vm.sending) vm.stop() else if (can) vm.send()
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                Text("↑", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(if (vm.sending) "■" else "↑", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             IconBtn(Icons.Filled.Add) { vm.plusOpen = true }
             Spacer(Modifier.weight(1f))
@@ -246,7 +249,7 @@ private fun Bubble(m: ChatMessage) {
                 .padding(12.dp)
         ) {
             if (m.attachmentName != null) Text(m.attachmentName, color = Accent, fontSize = 12.sp)
-            Text(m.text, color = Ink, fontSize = 15.sp)
+            MarkdownText(m.text, light = true)
         }
     }
 }
@@ -617,6 +620,14 @@ private fun ProvidersPage(vm: AriAiViewModel) {
     var url by remember { mutableStateOf("https://api.openai.com/v1") }
     var model by remember { mutableStateOf("") }
     var key by remember { mutableStateOf("") }
+    var kind by remember { mutableStateOf("openai") }
+    PageScaffold("Providers", onBack = { vm.go(Screen.Settings) }) {
+        if (vm.providers.isEmpty()) {
+            Text("No available AI providers, please add below", color = Mute)
+        }
+        Text("OpenAI-compatible Base URL e.g. https://api.openai.com/v1", color = Mute, fontSize = 13.sp)
+        vm.providers.forEach { p ->
+            Column(Modifier.fillMaremember { mutableStateOf("openai") }
     PageScaffold("Providers", onBack = { vm.go(Screen.Settings) }) {
         if (vm.providers.isEmpty()) {
             Text("No available AI providers, please add below", color = Mute)

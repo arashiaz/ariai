@@ -3,126 +3,237 @@ package com.ariai.app.net
 import com.ariai.app.data.ChatMessage
 import com.ariai.app.data.Provider
 import com.ariai.app.data.RequestLog
+import okhttp3.Call
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
-import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class LlmClient {
     @Volatile var lastLogs = listOf<RequestLog>()
         private set
 
+    private val http = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    private val active = AtomicReference<Call?>(null)
+
+    fun cancel() {
+        active.getAndSet(null)?.cancel()
+    }
+
     fun log(method: String, url: String, status: Int, body: String) {
-        lastLogs = (listOf(RequestLog(System.currentTimeMillis(), method, url, status, body.take(2000))) + lastLogs).take(80)
+        lastLogs = (listOf(RequestLog(System.currentTimeMillis(), method, url, status, body.take(2500))) + lastLogs).take(100)
     }
 
     fun base(p: Provider): String = p.baseUrl.trim().trimEnd('/')
 
-    fun chat(p: Provider, model: String, messages: List<ChatMessage>, system: String?): String {
-        val url = base(p) + "/chat/completions"
-        val arr = JSONArray()
-        if (!system.isNullOrBlank()) {
-            arr.put(JSONObject().put("role", "system").put("content", system))
+    fun chatStream(
+        p: Provider,
+        model: String,
+        messages: List<ChatMessage>,
+        system: String?,
+        onDelta: (String) -> Unit
+    ): String {
+        return when (p.kind) {
+            "anthropic" -> anthropic(p, model, messages, system, onDelta)
+            "gemini" -> gemini(p, model, messages, system, onDelta)
+            else -> openai(p, model, messages, system, onDelta)
         }
-        messages.forEach { m ->
-            val role = when (m.role) {
-                ChatMessage.Role.User -> "user"
-                ChatMessage.Role.Assistant -> "assistant"
-                ChatMessage.Role.System -> "system"
-            }
-            val content: Any = if (!m.imageBase64.isNullOrBlank()) {
-                JSONArray()
-                    .put(JSONObject().put("type", "text").put("text", m.text))
-                    .put(
-                        JSONObject().put("type", "image_url")
-                            .put("image_url", JSONObject().put("url", "data:image/jpeg;base64,${m.imageBase64}"))
-                    )
-            } else m.text
-            arr.put(JSONObject().put("role", role).put("content", content))
-        }
-        val payload = JSONObject()
-            .put("model", model.ifBlank { p.model })
-            .put("messages", arr)
-            .put("stream", false)
-            .toString()
-        val (code, body) = post(url, p, payload)
-        log("POST", url, code, body)
-        if (code !in 200..299) throw IllegalStateException("HTTP $code: ${body.take(500)}")
-        val json = JSONObject(body)
-        val err = json.optJSONObject("error")
-        if (err != null) throw IllegalStateException(err.optString("message", body.take(400)))
-        return json.getJSONArray("choices")
-            .getJSONObject(0)
-            .getJSONObject("message")
-            .optString("content")
-            .ifBlank { json.toString().take(800) }
     }
 
+    fun chat(p: Provider, model: String, messages: List<ChatMessage>, system: String?): String =
+        chatStream(p, model, messages, system) {}
+
     fun listModels(p: Provider): List<String> {
-        val url = base(p) + "/models"
-        val (code, body) = get(url, p)
-        log("GET", url, code, body)
-        if (code !in 200..299) throw IllegalStateException("HTTP $code: ${body.take(400)}")
-        val data = JSONObject(body).optJSONArray("data") ?: return emptyList()
-        return (0 until data.length()).map { data.getJSONObject(it).optString("id") }.filter { it.isNotBlank() }.sorted()
+        val url = when (p.kind) {
+            "gemini" -> base(p).trimEnd('/') + "/models?key=${p.apiKey}"
+            "anthropic" -> return listOf("claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest", modelOrEmpty(p)).filter { it.isNotBlank() }.distinct()
+            else -> base(p) + "/models"
+        }
+        val b = Request.Builder().url(url).get()
+        auth(b, p)
+        val req = b.build()
+        http.newCall(req).execute().use { resp ->
+            val body = resp.body?.string().orEmpty()
+            log("GET", url, resp.code, body)
+            if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(400)}")
+            return parseModelIds(p.kind, body)
+        }
     }
 
     fun searchDuck(q: String): String {
         val url = "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(q, "UTF-8")
-        val (code, body) = raw("GET", url, null, emptyMap())
-        log("GET", url, code, body.take(400))
-        if (code !in 200..299) return ""
-        val titleList = Regex("class=\"result__a\"[^>]*>(.*?)</a>", RegexOption.IGNORE_CASE)
-            .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.filter { it.isNotBlank() }.take(5).toList()
-        val snipList = Regex("class=\"result__snippet\"[^>]*>(.*?)</(?:a|td|div)", RegexOption.IGNORE_CASE)
-            .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.take(5).toList()
-        return titleList.mapIndexed { i, t -> "- $t: ${snipList.getOrNull(i).orEmpty()}" }.joinToString("\n").ifBlank { "" }
-    }
-
-    private fun post(url: String, p: Provider, json: String): Pair<Int, String> {
-        val headers = mutableMapOf(
-            "Content-Type" to "application/json",
-            "Authorization" to "Bearer ${p.apiKey}"
-        )
-        parseHeaders(p.headers).forEach { (k, v) -> headers[k] = v }
-        return raw("POST", url, json, headers)
-    }
-
-    private fun get(url: String, p: Provider): Pair<Int, String> {
-        val headers = mutableMapOf("Authorization" to "Bearer ${p.apiKey}")
-        parseHeaders(p.headers).forEach { (k, v) -> headers[k] = v }
-        return raw("GET", url, null, headers)
-    }
-
-    private fun parseHeaders(raw: String): Map<String, String> {
-        if (raw.isBlank()) return emptyMap()
-        return raw.lines().mapNotNull { line ->
-            val i = line.indexOf(':')
-            if (i <= 0) null else line.substring(0, i).trim() to line.substring(i + 1).trim()
-        }.toMap()
-    }
-
-    private fun raw(method: String, url: String, body: String?, headers: Map<String, String>): Pair<Int, String> {
-        val c = (URL(url).openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = 30000
-            readTimeout = 120000
-            doInput = true
-            instanceFollowRedirects = true
-            headers.forEach { (k, v) -> setRequestProperty(k, v) }
-            if (body != null) {
-                doOutput = true
-                OutputStreamWriter(outputStream, StandardCharsets.UTF_8).use { it.write(body) }
-            }
+        val req = Request.Builder().url(url).header("User-Agent", "AriAi/1.0").get().build()
+        http.newCall(req).execute().use { resp ->
+            val body = resp.body?.string().orEmpty()
+            log("GET", url, resp.code, body.take(400))
+            if (!resp.isSuccessful) return ""
+            val titleList = Regex("class=\"result__a\"[^>]*>(.*?)</a>", RegexOption.IGNORE_CASE)
+                .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.filter { it.isNotBlank() }.take(5).toList()
+            val snipList = Regex("class=\"result__snippet\"[^>]*>(.*?)</(?:a|td|div)", RegexOption.IGNORE_CASE)
+                .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.take(5).toList()
+            return titleList.mapIndexed { i, t -> "- $t: ${snipList.getOrNull(i).orEmpty()}" }.joinToString("\n")
         }
-        val code = c.responseCode
-        val stream = if (code in 200..299) c.inputStream else c.errorStream
-        val text = stream?.let { BufferedReader(InputStreamReader(it, StandardCharsets.UTF_8)).readText() } ?: ""
-        c.disconnect()
-        return code to text
+    }
+
+    private fun openai(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
+        val url = base(p) + "/chat/completions"
+        val arr = JSONArray()
+        if (!system.isNullOrBlank()) arr.put(JSONObject().put("role", "system").put("content", system))
+        messages.forEach { m -> arr.put(openAiMsg(m)) }
+        val payload = JSONObject()
+            .put("model", model.ifBlank { p.model })
+            .put("messages", arr)
+            .put("stream", true)
+            .put("temperature", p.temperature.toDouble())
+            .put("max_tokens", p.maxTokens)
+            .toString()
+        return sse(url, p, payload, onDelta) { line ->
+            val o = JSONObject(line)
+            o.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("delta")?.optString("content").orEmpty()
+        }
+    }
+
+    private fun anthropic(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
+        val url = if (base(p).endsWith("/v1")) base(p) + "/messages" else base(p) + "/v1/messages"
+        val arr = JSONArray()
+        messages.filter { it.role != ChatMessage.Role.System }.forEach { m ->
+            arr.put(JSONObject().put("role", if (m.role == ChatMessage.Role.Assistant) "assistant" else "user").put("content", m.text))
+        }
+        val payload = JSONObject()
+            .put("model", model.ifBlank { p.model })
+            .put("max_tokens", p.maxTokens)
+            .put("messages", arr)
+            .put("stream", true)
+        if (!system.isNullOrBlank()) payload.put("system", system)
+        return sse(url, p, payload.toString(), onDelta) { line ->
+            val o = JSONObject(line)
+            if (o.optString("type") == "content_block_delta") o.optJSONObject("delta")?.optString("text").orEmpty()
+            else o.optJSONArray("content")?.optJSONObject(0)?.optString("text").orEmpty()
+        }
+    }
+
+    private fun gemini(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
+        val m = model.ifBlank { p.model }.removePrefix("models/")
+        val url = base(p).trimEnd('/') + "/models/$m:generateContent?key=${p.apiKey}"
+        val contents = JSONArray()
+        if (!system.isNullOrBlank()) {
+            contents.put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "System: $system"))))
+        }
+        messages.forEach { msg ->
+            val role = if (msg.role == ChatMessage.Role.Assistant) "model" else "user"
+            contents.put(JSONObject().put("role", role).put("parts", JSONArray().put(JSONObject().put("text", msg.text))))
+        }
+        val payload = JSONObject().put("contents", contents)
+            .put("generationConfig", JSONObject().put("temperature", p.temperature.toDouble()).put("maxOutputTokens", p.maxTokens))
+            .toString()
+        val b = Request.Builder().url(url).post(payload.toRequestBody(JSON))
+        auth(b, p)
+        val call = http.newCall(b.build())
+        active.set(call)
+        call.execute().use { resp ->
+            val body = resp.body?.string().orEmpty()
+            log("POST", url, resp.code, body)
+            if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(500)}")
+            val text = JSONObject(body).optJSONArray("candidates")
+                ?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
+                ?.optJSONObject(0)?.optString("text").orEmpty()
+            if (text.isNotEmpty()) onDelta(text)
+            return text.ifBlank { body.take(400) }
+        }
+    }
+
+    private fun sse(url: String, p: Provider, payload: String, onDelta: (String) -> Unit, parse: (String) -> String): String {
+        val b = Request.Builder().url(url).post(payload.toRequestBody(JSON)).header("Accept", "text/event-stream")
+        auth(b, p)
+        val call = http.newCall(b.build())
+        active.set(call)
+        val out = StringBuilder()
+        call.execute().use { resp ->
+            if (!resp.isSuccessful) {
+                val err = resp.body?.string().orEmpty()
+                log("POST", url, resp.code, err)
+                throw IllegalStateException("HTTP ${resp.code}: ${err.take(500)}")
+            }
+            val src = resp.body?.source() ?: return ""
+            val buf = StringBuilder()
+            while (!src.exhausted()) {
+                val line = src.readUtf8Line() ?: break
+                if (line.startsWith("data:")) {
+                    val data = line.removePrefix("data:").trim()
+                    if (data == "[DONE]") break
+                    try {
+                        val piece = parse(data)
+                        if (piece.isNotEmpty()) {
+                            out.append(piece)
+                            onDelta(piece)
+                        }
+                    } catch (_: Exception) { }
+                } else if (line.isNotBlank() && line.startsWith("{")) {
+                    buf.append(line)
+                }
+            }
+            if (out.isEmpty() && buf.isNotEmpty()) {
+                val t = parse(buf.toString())
+                out.append(t)
+                onDelta(t)
+            }
+            log("POST", url, resp.code, out.take(400).toString())
+        }
+        active.set(null)
+        return out.toString()
+    }
+
+    private fun openAiMsg(m: ChatMessage): JSONObject {
+        val role = when (m.role) {
+            ChatMessage.Role.User -> "user"
+            ChatMessage.Role.Assistant -> "assistant"
+            ChatMessage.Role.System -> "system"
+        }
+        val content: Any = if (!m.imageBase64.isNullOrBlank()) {
+            JSONArray()
+                .put(JSONObject().put("type", "text").put("text", m.text))
+                .put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:image/jpeg;base64,${m.imageBase64}")))
+        } else m.text
+        return JSONObject().put("role", role).put("content", content)
+    }
+
+    private fun auth(b: Request.Builder, p: Provider) {
+        when (p.kind) {
+            "anthropic" -> {
+                b.header("x-api-key", p.apiKey)
+                b.header("anthropic-version", "2023-06-01")
+            }
+            "gemini" -> { }
+            else -> b.header("Authorization", "Bearer ${p.apiKey}")
+        }
+        b.header("Content-Type", "application/json")
+        p.headers.lines().forEach { line ->
+            val i = line.indexOf(':')
+            if (i > 0) b.header(line.substring(0, i).trim(), line.substring(i + 1).trim())
+        }
+    }
+
+    private fun parseModelIds(kind: String, body: String): List<String> {
+        val json = JSONObject(body)
+        val data = json.optJSONArray("data") ?: json.optJSONArray("models") ?: return emptyList()
+        return (0 until data.length()).map { i ->
+            val o = data.getJSONObject(i)
+            o.optString("id").ifBlank { o.optString("name") }.removePrefix("models/")
+        }.filter { it.isNotBlank() }.sorted()
+    }
+
+    private fun modelOrEmpty(p: Provider) = p.model
+
+    companion object {
+        private val JSON = "application/json; charset=utf-8".toMediaType()
     }
 }

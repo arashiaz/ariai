@@ -42,7 +42,8 @@ class AppStore(context: Context) {
         if (m != null) for (i in 0 until m.length()) models += m.getString(i)
         Provider(
             o.getString("id"), o.getString("name"), o.optString("baseUrl"),
-            o.optString("model"), o.optString("apiKey"), models, o.optString("headers")
+            o.optString("model"), o.optString("apiKey"), models, o.optString("headers"),
+            o.optString("kind", "openai"), o.optDouble("temperature", 0.7).toFloat(), o.optInt("maxTokens", 4096)
         )
     }
 
@@ -50,6 +51,7 @@ class AppStore(context: Context) {
         JSONObject().put("id", x.id).put("name", x.name).put("baseUrl", x.baseUrl)
             .put("model", x.model).put("apiKey", x.apiKey)
             .put("models", JSONArray(x.models)).put("headers", x.headers)
+            .put("kind", x.kind).put("temperature", x.temperature.toDouble()).put("maxTokens", x.maxTokens)
     }
 
     fun assistants(): List<Assistant> {

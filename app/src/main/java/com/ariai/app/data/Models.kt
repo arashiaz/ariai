@@ -7,7 +7,10 @@ data class Provider(
     val model: String,
     val apiKey: String = "",
     val models: List<String> = emptyList(),
-    val headers: String = ""
+    val headers: String = "",
+    val kind: String = "openai",
+    val temperature: Float = 0.7f,
+    val maxTokens: Int = 4096
 )
 
 data class Assistant(

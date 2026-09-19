@@ -263,8 +263,25 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun addProvider(name: String, url: String, model: String, key: String, headers: String = "") {
-        val p = Provider(AppStore.id(), name.ifBlank { "Provider" }, url.trimEnd('/'), model, key, emptyList(), headers)
+    fun stop() {
+        llm.cancel()
+        sending = false
+        snack = "Stopped"
+    }
+
+    fun regenerate() {
+        val conv = current ?: return
+        val lastA = conv.messages.indexOfLast { it.role == ChatMessage.Role.Assistant }
+        if (lastA >= 0) {
+            val trimmed = conv.copy(messages = conv.messages.take(lastA))
+            current = trimmed
+            store.saveConversation(trimmed)
+            reply(trimmed)
+        }
+    }
+
+    fun addProvider(name: String, url: String, model: String, key: String, headers: String = "", kind: String = "openai") {
+        val p = Provider(AppStore.id(), name.ifBlank { "Provider" }, url.trimEnd('/'), model, key, emptyList(), headers, kind)
         val list = providers + p
         store.saveProviders(list)
         providers = list
