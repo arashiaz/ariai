@@ -1239,6 +1239,3 @@ private fun Pill(t: String, on: Boolean, onClick: () -> Unit) {
         Text(t, color = Ink, fontSize = 13.sp)
     }
 }
- = Ink, fontSize = 13.sp)
-    }
-}
