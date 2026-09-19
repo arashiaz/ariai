@@ -30,46 +30,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.Book
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Archive
-import androidx.compose.material.icons.outlined.CloudUpload
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.Dns
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.InsertDriveFile
-import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.List
-import androidx.compose.material.icons.outlined.Menu
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Psychology
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.RocketLaunch
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.SentimentSatisfied
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.Translate
-import androidx.compose.material.icons.outlined.VolumeUp
-import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -161,11 +140,11 @@ private fun ChatPage(vm: AriAiViewModel) {
             Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconBtn(Icons.Outlined.Menu) { vm.drawerOpen = true }
+            IconBtn(Icons.Filled.Menu) { vm.drawerOpen = true }
             Text("New Chat", color = Ink, fontWeight = FontWeight.Medium, fontSize = 18.sp)
             Spacer(Modifier.weight(1f))
-            IconBtn(Icons.Outlined.List) { vm.go(Screen.ChatHistory) }
-            IconBtn(Icons.Outlined.ChatBubbleOutline) { vm.openNewChat() }
+            IconBtn(Icons.Filled.List) { vm.go(Screen.ChatHistory) }
+            IconBtn(Icons.Filled.Email) { vm.openNewChat() }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val msgs = vm.current?.messages.orEmpty()
@@ -182,7 +161,7 @@ private fun ChatPage(vm: AriAiViewModel) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(vm.pendingAttach!!, color = Accent, fontSize = 13.sp)
                 Spacer(Modifier.width(8.dp))
-                Icon(Icons.Outlined.Close, null, Modifier.size(16.dp).clickable { vm.pendingAttach = null }, tint = Mute)
+                Icon(Icons.Filled.Close, null, Modifier.size(16.dp).clickable { vm.pendingAttach = null }, tint = Mute)
             }
         }
         Composer(vm)
@@ -217,10 +196,10 @@ private fun Composer(vm: AriAiViewModel) {
             ) {
                 Text("↑", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
-            IconBtn(Icons.Outlined.Add) { vm.plusOpen = true }
+            IconBtn(Icons.Filled.Add) { vm.plusOpen = true }
             Spacer(Modifier.weight(1f))
-            IconBtn(Icons.Outlined.Search) { vm.snack = "Search in chat" }
-            IconBtn(Icons.Outlined.Psychology) { vm.providerSheet = true }
+            IconBtn(Icons.Filled.Search) { vm.snack = "Search in chat" }
+            IconBtn(Icons.Filled.Person) { vm.providerSheet = true }
         }
     }
 }
@@ -248,14 +227,14 @@ private fun PlusSheet(vm: AriAiViewModel) {
         ) {
             Handle()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                PlusTile("Upload File", Icons.Outlined.InsertDriveFile) { vm.attach("file") }
-                PlusTile("Photo", Icons.Outlined.Image) { vm.attach("photo") }
-                PlusTile("Take Picture", Icons.Outlined.CameraAlt) { vm.attach("camera") }
+                PlusTile("Upload File", Icons.Filled.Email) { vm.attach("file") }
+                PlusTile("Photo", Icons.Filled.Star) { vm.attach("photo") }
+                PlusTile("Take Picture", Icons.Filled.Add) { vm.attach("camera") }
             }
             Spacer(Modifier.height(16.dp))
-            SheetRow("Extensions", Icons.Outlined.Extension) { vm.go(Screen.Extensions) }
+            SheetRow("Extensions", Icons.Filled.Build) { vm.go(Screen.Extensions) }
             Spacer(Modifier.height(8.dp))
-            SheetRow("Compress History", Icons.Outlined.Archive) {
+            SheetRow("Compress History", Icons.Filled.List) {
                 vm.plusOpen = false
                 vm.snack = "History compressed"
             }
@@ -291,7 +270,7 @@ private fun ProviderSheet(vm: AriAiViewModel) {
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(list, key = { it.id }) { p ->
-                        CardRow(p.name, p.model, Icons.Outlined.Psychology, selected = p.id == vm.selectedProviderId) {
+                        CardRow(p.name, p.model, Icons.Filled.Person, selected = p.id == vm.selectedProviderId) {
                             vm.selectProvider(p.id)
                         }
                     }
@@ -311,7 +290,7 @@ private fun Drawer(vm: AriAiViewModel) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Edit, null, tint = Ink, modifier = Modifier.size(16.dp).clickable {
+                        Icon(Icons.Filled.Edit, null, tint = Ink, modifier = Modifier.size(16.dp).clickable {
                             vm.setUser(if (vm.userName == "User") "Ari" else "User")
                         })
                         Spacer(Modifier.width(6.dp))
@@ -323,12 +302,12 @@ private fun Drawer(vm: AriAiViewModel) {
                 Box(Modifier.size(52.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFE91E8C), Color(0xFF8BC34A)))))
             }
             Spacer(Modifier.height(18.dp))
-            MenuLine("Search Chats", Icons.Outlined.Search) { vm.go(Screen.SearchChats) }
-            MenuLine("Chat History", Icons.Outlined.History) { vm.go(Screen.ChatHistory) }
+            MenuLine("Search Chats", Icons.Filled.Search) { vm.go(Screen.SearchChats) }
+            MenuLine("Chat History", Icons.Filled.List) { vm.go(Screen.ChatHistory) }
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
                 Text("New", fontWeight = FontWeight.SemiBold, color = Ink)
-                Icon(Icons.Outlined.Add, null, tint = Ink, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Add, null, tint = Ink, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Box {
                     Box(
@@ -338,12 +317,12 @@ private fun Drawer(vm: AriAiViewModel) {
                         Column(
                             Modifier.padding(top = 44.dp).clip(RoundedCornerShape(14.dp)).background(CardBg).border(1.dp, Chip, RoundedCornerShape(14.dp)).padding(8.dp)
                         ) {
-                            MenuLine("AI Translator", Icons.Outlined.Translate) {
+                            MenuLine("AI Translator", Icons.Filled.Edit) {
                                 vm.newMenu = false
                                 vm.openNewChat()
                                 vm.input = "Translate: "
                             }
-                            MenuLine("Image Generation", Icons.Outlined.Image) {
+                            MenuLine("Image Generation", Icons.Filled.Star) {
                                 vm.newMenu = false
                                 vm.openNewChat()
                                 vm.input = "Generate image: "
@@ -374,15 +353,15 @@ private fun Drawer(vm: AriAiViewModel) {
                 Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFE91E8C), Color(0xFF8BC34A)))))
                 Spacer(Modifier.width(10.dp))
                 Text(vm.selectedAssistant?.name ?: "Default Assistant", color = Ink, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                Icon(Icons.Outlined.SentimentSatisfied, null, tint = Ink)
+                Icon(Icons.Filled.Person, null, tint = Ink)
             }
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                RoundIcon(Icons.Outlined.Settings) { vm.go(Screen.Settings) }
-                RoundIcon(Icons.Outlined.BarChart) { vm.go(Screen.Statistics) }
-                RoundIcon(Icons.Outlined.SentimentSatisfied) { vm.go(Screen.Assistant) }
-                RoundIcon(Icons.Outlined.AutoAwesome) { vm.go(Screen.ModelSettings) }
-                RoundIcon(Icons.Outlined.SentimentSatisfied) { vm.go(Screen.Assistant) }
+                RoundIcon(Icons.Filled.Settings) { vm.go(Screen.Settings) }
+                RoundIcon(Icons.Filled.List) { vm.go(Screen.Statistics) }
+                RoundIcon(Icons.Filled.Person) { vm.go(Screen.Assistant) }
+                RoundIcon(Icons.Filled.Star) { vm.go(Screen.ModelSettings) }
+                RoundIcon(Icons.Filled.Person) { vm.go(Screen.Assistant) }
             }
         }
     }
@@ -398,7 +377,7 @@ private fun SettingsPage(vm: AriAiViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Please configure API and model", fontWeight = FontWeight.SemiBold, color = DangerInk, fontSize = 16.sp)
                     Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Outlined.Info, null, tint = DangerInk)
+                    Icon(Icons.Filled.Info, null, tint = DangerInk)
                 }
                 Text("You haven't configured API and model yet, please configure first", color = DangerInk, fontSize = 13.sp, textAlign = TextAlign.End)
                 Spacer(Modifier.height(8.dp))
@@ -407,30 +386,30 @@ private fun SettingsPage(vm: AriAiViewModel) {
         }
         SectionLabel("General Settings")
         Group {
-            SettingRow("Color Mode", vm.colorMode, Icons.Outlined.WbSunny) { vm.go(Screen.Theme) }
-            SettingRow("Preferences", "Theme, notifications, UI and general settings", Icons.Outlined.Settings) { vm.go(Screen.Preferences) }
-            SettingRow("Assistant", "Set up personalized assistants (agents)", Icons.Outlined.SentimentSatisfied) { vm.go(Screen.Assistant) }
-            SettingRow("Extensions", "Manage prompt injections, skills and more", Icons.Outlined.Extension) { vm.go(Screen.Extensions) }
+            SettingRow("Color Mode", vm.colorMode, Icons.Filled.Star) { vm.go(Screen.Theme) }
+            SettingRow("Preferences", "Theme, notifications, UI and general settings", Icons.Filled.Settings) { vm.go(Screen.Preferences) }
+            SettingRow("Assistant", "Set up personalized assistants (agents)", Icons.Filled.Person) { vm.go(Screen.Assistant) }
+            SettingRow("Extensions", "Manage prompt injections, skills and more", Icons.Filled.Build) { vm.go(Screen.Extensions) }
         }
         SectionLabel("Models & Services")
         Group {
-            SettingRow("Default Model and Prompt", "Set default models for each feature", Icons.Outlined.AutoAwesome) { vm.go(Screen.ModelSettings) }
-            SettingRow("Providers", "Configure AI providers", Icons.Outlined.Psychology) { vm.go(Screen.Providers) }
-            SettingRow("Search Service", "Set up search service", Icons.Outlined.Public) { vm.go(Screen.SearchService) }
-            SettingRow("Speech Services", "Configure text-to-speech and speech recognition", Icons.Outlined.VolumeUp) { vm.go(Screen.Speech) }
-            SettingRow("MCP", "Configure MCP Servers", Icons.Outlined.Build) { vm.go(Screen.Mcp) }
-            SettingRow("Web Server", "Allow you access AriAi via Web", Icons.Outlined.Dns) { vm.go(Screen.WebServer) }
+            SettingRow("Default Model and Prompt", "Set default models for each feature", Icons.Filled.Star) { vm.go(Screen.ModelSettings) }
+            SettingRow("Providers", "Configure AI providers", Icons.Filled.Person) { vm.go(Screen.Providers) }
+            SettingRow("Search Service", "Set up search service", Icons.Filled.Home) { vm.go(Screen.SearchService) }
+            SettingRow("Speech Services", "Configure text-to-speech and speech recognition", Icons.Filled.Notifications) { vm.go(Screen.Speech) }
+            SettingRow("MCP", "Configure MCP Servers", Icons.Filled.Build) { vm.go(Screen.Mcp) }
+            SettingRow("Web Server", "Allow you access AriAi via Web", Icons.Filled.Settings) { vm.go(Screen.WebServer) }
         }
         SectionLabel("Data Settings")
         Group {
-            SettingRow("Data Backup", "Backup and restore app data", Icons.Outlined.Storage) { vm.go(Screen.Backup) }
-            SettingRow("Storage Management", "files, ${vm.conversations.size} chats", Icons.Outlined.CloudUpload) { vm.snack = "Cache cleared" }
+            SettingRow("Data Backup", "Backup and restore app data", Icons.Filled.Settings) { vm.go(Screen.Backup) }
+            SettingRow("Storage Management", "files, ${vm.conversations.size} chats", Icons.Filled.Send) { vm.snack = "Cache cleared" }
         }
         SectionLabel("About")
         Group {
-            SettingRow("About", "About this app", Icons.Outlined.Info) { vm.go(Screen.About) }
-            SettingRow("Documentation", "View app usage instructions and help", Icons.Outlined.Book) { vm.go(Screen.Docs) }
-            SettingRow("Request Logs", "Inspect logs", Icons.Outlined.List) { vm.go(Screen.Logs) }
+            SettingRow("About", "About this app", Icons.Filled.Info) { vm.go(Screen.About) }
+            SettingRow("Documentation", "View app usage instructions and help", Icons.Filled.Info) { vm.go(Screen.Docs) }
+            SettingRow("Request Logs", "Inspect logs", Icons.Filled.List) { vm.go(Screen.Logs) }
         }
     }
 }
@@ -439,11 +418,11 @@ private fun SettingsPage(vm: AriAiViewModel) {
 private fun PrefsPage(vm: AriAiViewModel) {
     PageScaffold("Preferences", onBack = { vm.go(Screen.Settings) }) {
         Group {
-            SettingRow("Theme", "Dynamic color, theme, AMOLED dark mode", Icons.Outlined.LightMode) { vm.go(Screen.Theme) }
-            SettingRow("Notifications", "Update alerts, message generation notifications", Icons.Outlined.Notifications) { vm.go(Screen.Notifications) }
-            SettingRow("General", "Interaction behavior, scrolling, input settings", Icons.Outlined.Settings) { vm.go(Screen.General) }
-            SettingRow("UI Preferences", "Message display, fonts, code blocks", Icons.Outlined.Palette) { vm.snack = "UI preferences saved" }
-            SettingRow("Network", "User-Agent and network request settings", Icons.Outlined.Language) { vm.snack = "Network defaults" }
+            SettingRow("Theme", "Dynamic color, theme, AMOLED dark mode", Icons.Filled.Star) { vm.go(Screen.Theme) }
+            SettingRow("Notifications", "Update alerts, message generation notifications", Icons.Filled.Notifications) { vm.go(Screen.Notifications) }
+            SettingRow("General", "Interaction behavior, scrolling, input settings", Icons.Filled.Settings) { vm.go(Screen.General) }
+            SettingRow("UI Preferences", "Message display, fonts, code blocks", Icons.Filled.Settings) { vm.snack = "UI preferences saved" }
+            SettingRow("Network", "User-Agent and network request settings", Icons.Filled.Home) { vm.snack = "Network defaults" }
         }
     }
 }
@@ -494,7 +473,7 @@ private fun GeneralPage(vm: AriAiViewModel) {
 private fun NotifPage(vm: AriAiViewModel) {
     PageScaffold("Notifications", onBack = { vm.go(Screen.Preferences) }) {
         Group {
-            SettingRow("Show Updates", "Update reminders are enabled", Icons.Outlined.Notifications) { vm.snack = "Updates on" }
+            SettingRow("Show Updates", "Update reminders are enabled", Icons.Filled.Notifications) { vm.snack = "Updates on" }
             ToggleRow("Enable notification after message generated", "Show a notification when a message is generated if the app is not in the foreground", "notif_gen", vm)
         }
     }
@@ -505,7 +484,7 @@ private fun ThemePage(vm: AriAiViewModel) {
     PageScaffold("Color Mode", onBack = { vm.go(Screen.Settings) }) {
         Group {
             listOf("System", "Light", "Dark").forEach { mode ->
-                SettingRow(mode, if (vm.colorMode == mode) "Selected" else "", Icons.Outlined.DarkMode) {
+                SettingRow(mode, if (vm.colorMode == mode) "Selected" else "", Icons.Filled.Star) {
                     vm.colorMode = mode
                     vm.store.setStr("color_mode", mode)
                 }
@@ -518,11 +497,11 @@ private fun ThemePage(vm: AriAiViewModel) {
 private fun AssistantPage(vm: AriAiViewModel) {
     var q by remember { mutableStateOf("") }
     PageScaffold("Assistant Settings", onBack = { vm.go(Screen.Settings) }, extra = {
-        IconBtn(Icons.Outlined.Add) { vm.addAssistant("Default Assistant") }
+        IconBtn(Icons.Filled.Add) { vm.addAssistant("Default Assistant") }
     }) {
         SearchBar("Search assistants", q) { q = it }
         vm.assistants.filter { it.name.contains(q, true) }.forEach { a ->
-            CardRow(a.name, "", Icons.Outlined.MoreVert, leading = {
+            CardRow(a.name, "", Icons.Filled.MoreVert, leading = {
                 Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFE91E8C), Color(0xFF8BC34A)))))
             }) {
                 vm.selectedAssistantId = a.id
@@ -538,10 +517,10 @@ private fun ExtPage(vm: AriAiViewModel) {
     PageScaffold("Extensions", onBack = { vm.go(Screen.Settings) }) {
         SectionLabel("Extensions")
         Group {
-            SettingRow("Quick Messages", "Manage shared quick message templates", Icons.Outlined.Bolt) { vm.go(Screen.QuickMessages) }
-            SettingRow("Prompts", "Manage and use custom prompts", Icons.Outlined.Book) { vm.go(Screen.Prompts) }
-            SettingRow("Agent Skills", "Manage skill packages for AI to load on demand", Icons.Outlined.Extension) { vm.go(Screen.Skills) }
-            SettingRow("Workspace", "Manage local working directories accessible by Agent", Icons.Outlined.Folder) { vm.go(Screen.Workspace) }
+            SettingRow("Quick Messages", "Manage shared quick message templates", Icons.Filled.Star) { vm.go(Screen.QuickMessages) }
+            SettingRow("Prompts", "Manage and use custom prompts", Icons.Filled.Info) { vm.go(Screen.Prompts) }
+            SettingRow("Agent Skills", "Manage skill packages for AI to load on demand", Icons.Filled.Build) { vm.go(Screen.Skills) }
+            SettingRow("Workspace", "Manage local working directories accessible by Agent", Icons.Filled.Home) { vm.go(Screen.Workspace) }
         }
     }
 }
@@ -553,7 +532,7 @@ private fun ModelPage(vm: AriAiViewModel) {
         ModelPick("Chat Model", "Global default chat model", vm.chatModel, vm) { vm.pickSlot("chat", it) }
         SectionLabel("Fast Model")
         ModelPick("Fast Model", "Model used for titles, chat suggestions, and other fast tasks", vm.fastModel, vm) { vm.pickSlot("fast", it) }
-        CardRow("Thinking Budget", "Reasoning", Icons.Outlined.Bolt) { vm.snack = "Thinking budget" }
+        CardRow("Thinking Budget", "Reasoning", Icons.Filled.Star) { vm.snack = "Thinking budget" }
         ToggleRow("Enable Chat Suggestions", "", "suggestions", vm)
         SectionLabel("Translation Model")
         ModelPick("Translation Model", "The model used for translation features", vm.translateModel, vm) { vm.pickSlot("tr", it) }
@@ -564,12 +543,12 @@ private fun ModelPage(vm: AriAiViewModel) {
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { vm.go(Screen.Prompts) }) {
-                Icon(Icons.Outlined.Edit, null, tint = Mute)
+                Icon(Icons.Filled.Edit, null, tint = Mute)
                 Text("Prompts", color = Mute, fontSize = 12.sp)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.clip(RoundedCornerShape(16.dp)).background(AccentSoft).padding(8.dp)) {
-                    Icon(Icons.Outlined.Psychology, null, tint = Accent)
+                    Icon(Icons.Filled.Person, null, tint = Accent)
                 }
                 Text("Model", color = Ink, fontSize = 12.sp)
             }
@@ -580,12 +559,12 @@ private fun ModelPage(vm: AriAiViewModel) {
 @Composable
 private fun ModelPick(title: String, hint: String, id: String, vm: AriAiViewModel, onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    CardRow(title, if (id.isBlank()) "Select Model" else vm.modelName(id), Icons.Outlined.Psychology) { open = !open }
+    CardRow(title, if (id.isBlank()) "Select Model" else vm.modelName(id), Icons.Filled.Person) { open = !open }
     Text(hint, color = Mute, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, bottom = 8.dp), textAlign = TextAlign.End)
     if (open) {
         if (vm.providers.isEmpty()) Text("Add a provider first", color = Mute, modifier = Modifier.padding(8.dp))
         vm.providers.forEach { p ->
-            CardRow(p.name, p.model, Icons.Outlined.Check) { onPick(p.id); open = false }
+            CardRow(p.name, p.model, Icons.Filled.Check) { onPick(p.id); open = false }
         }
     }
 }
@@ -601,7 +580,7 @@ private fun ProvidersPage(vm: AriAiViewModel) {
             Text("No available AI providers, please add below", color = Mute)
         }
         vm.providers.forEach { p ->
-            CardRow(p.name, p.model, Icons.Outlined.Psychology) { vm.selectProvider(p.id); vm.go(Screen.Chat) }
+            CardRow(p.name, p.model, Icons.Filled.Person) { vm.selectProvider(p.id); vm.go(Screen.Chat) }
         }
         SectionLabel("Add provider")
         Field("Name", name) { name = it }
@@ -620,19 +599,19 @@ private fun ProvidersPage(vm: AriAiViewModel) {
 @Composable
 private fun SpeechPage(vm: AriAiViewModel) {
     PageScaffold("Speech", onBack = { vm.go(Screen.Settings) }, extra = {
-        IconBtn(Icons.Outlined.Add) { vm.snack = "Add speech provider" }
+        IconBtn(Icons.Filled.Add) { vm.snack = "Add speech provider" }
     }) {
         SpeechCard("System TTS", "System TTS", "S", vm.speechId == "sys") { vm.pickSpeech("sys") }
         SpeechCard("AiHubMix", "OpenAI", "A", vm.speechId == "mix") { vm.pickSpeech("mix") }
         Spacer(Modifier.height(24.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Outlined.Mic, null, tint = Mute)
+                Icon(Icons.Filled.Phone, null, tint = Mute)
                 Text("Speech Recognition", color = Mute, fontSize = 12.sp)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.clip(RoundedCornerShape(16.dp)).background(AccentSoft).padding(8.dp)) {
-                    Icon(Icons.Outlined.VolumeUp, null, tint = Accent)
+                    Icon(Icons.Filled.Notifications, null, tint = Accent)
                 }
                 Text("Text to Speech", color = Ink, fontSize = 12.sp)
             }
@@ -667,15 +646,15 @@ private fun SpeechCard(title: String, sub: String, badge: String, selected: Bool
 private fun McpPage(vm: AriAiViewModel) {
     PageScaffold("MCP", onBack = { vm.go(Screen.Settings) }, extra = {
         Row {
-            IconBtn(Icons.Outlined.Add) {
+            IconBtn(Icons.Filled.Add) {
                 vm.mcpDraft = McpServer(AppStore.id(), "", "", true, "http", "")
             }
-            IconBtn(Icons.Outlined.CloudUpload) { vm.mcpImport = true }
+            IconBtn(Icons.Filled.Send) { vm.mcpImport = true }
         }
     }) {
         if (vm.mcp.isEmpty()) Text("No MCP servers. Tap + to add.", color = Mute)
         vm.mcp.forEach { s ->
-            CardRow(s.name.ifBlank { "Unnamed" }, s.url, Icons.Outlined.Build) { vm.mcpDraft = s }
+            CardRow(s.name.ifBlank { "Unnamed" }, s.url, Icons.Filled.Build) { vm.mcpDraft = s }
         }
     }
 }
@@ -767,14 +746,14 @@ private fun StatsPage(vm: AriAiViewModel) {
             Text("More  ● ● ○   Less", color = Mute, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("Total Messages", vm.store.int("msg_count").toString(), Icons.Outlined.ChatBubbleOutline, Modifier.weight(1f))
-            StatCard("Total Conversations", vm.conversations.size.toString(), Icons.Outlined.BarChart, Modifier.weight(1f))
+            StatCard("Total Messages", vm.store.int("msg_count").toString(), Icons.Filled.Email, Modifier.weight(1f))
+            StatCard("Total Conversations", vm.conversations.size.toString(), Icons.Filled.List, Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("Output Tokens", "0", Icons.Outlined.Bolt, Modifier.weight(1f))
-            StatCard("Input Tokens", "0", Icons.Outlined.Bolt, Modifier.weight(1f))
+            StatCard("Output Tokens", "0", Icons.Filled.Star, Modifier.weight(1f))
+            StatCard("Input Tokens", "0", Icons.Filled.Star, Modifier.weight(1f))
         }
-        StatCard("App Launch Count", vm.store.int("launches").toString(), Icons.Outlined.Star, Modifier.fillMaxWidth())
+        StatCard("App Launch Count", vm.store.int("launches").toString(), Icons.Filled.Star, Modifier.fillMaxWidth())
     }
 }
 
@@ -795,7 +774,7 @@ private fun HistoryPage(vm: AriAiViewModel) {
     PageScaffold("Chat History", onBack = { vm.go(Screen.Chat) }) {
         if (vm.conversations.isEmpty()) Text("No conversations", color = Mute)
         vm.conversations.forEach { c ->
-            CardRow(c.title, c.preview, Icons.Outlined.ChatBubbleOutline) { vm.openConv(c.id) }
+            CardRow(c.title, c.preview, Icons.Filled.Email) { vm.openConv(c.id) }
         }
     }
 }
@@ -805,7 +784,7 @@ private fun SearchChatsPage(vm: AriAiViewModel) {
     PageScaffold("Search Chats", onBack = { vm.go(Screen.Chat) }) {
         SearchBar("Search chats", vm.chatQuery) { vm.chatQuery = it }
         vm.conversations.filter { it.title.contains(vm.chatQuery, true) || it.preview.contains(vm.chatQuery, true) }.forEach { c ->
-            CardRow(c.title, c.preview, Icons.Outlined.Search) { vm.openConv(c.id) }
+            CardRow(c.title, c.preview, Icons.Filled.Search) { vm.openConv(c.id) }
         }
     }
 }
@@ -829,7 +808,7 @@ private fun PageScaffold(title: String, onBack: () -> Unit, extra: @Composable (
             Text(title, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = Ink)
             Spacer(Modifier.width(8.dp))
             Box(Modifier.size(40.dp).clip(CircleShape).background(CardBg).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.ArrowBack, null, tint = Ink)
+                Icon(Icons.Filled.ArrowBack, null, tint = Ink)
             }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -954,7 +933,7 @@ private fun SearchBar(hint: String, value: String, onChange: (String) -> Unit) {
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Chip).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Outlined.Search, null, tint = Mute)
+        Icon(Icons.Filled.Search, null, tint = Mute)
         Spacer(Modifier.width(8.dp))
         BasicTextField(
             value = value,
@@ -1017,7 +996,7 @@ private fun Pill(t: String, on: Boolean, onClick: () -> Unit) {
         Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) AccentSoft else Chip).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (on) Icon(Icons.Outlined.Check, null, Modifier.size(16.dp), tint = Accent)
+        if (on) Icon(Icons.Filled.Check, null, Modifier.size(16.dp), tint = Accent)
         Spacer(Modifier.width(4.dp))
         Text(t, color = Ink, fontSize = 13.sp)
     }
