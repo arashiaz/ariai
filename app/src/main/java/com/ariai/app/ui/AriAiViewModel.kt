@@ -451,8 +451,35 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun deleteConv(id: String) {
+        lastDeleted = conversations.find { it.id == id }
         store.deleteConversation(id)
         if (current?.id == id) current = null
+        refresh()
+    }
+
+    fun undoDelete() {
+        val c = lastDeleted ?: return
+        store.saveConversation(c)
+        lastDeleted = null
+        refresh()
+        snack = "Restored"
+    }
+
+    fun pinConv(id: String) {
+        val c = conversations.find { it.id == id } ?: return
+        store.saveConversation(c.copy(pinned = !c.pinned))
+        refresh()
+    }
+
+    fun editLastUser() {
+        val conv = current ?: return
+        val i = conv.messages.indexOfLast { it.role == ChatMessage.Role.User }
+        if (i < 0) return
+        val msg = conv.messages[i]
+        input = msg.text
+        val trimmed = conv.copy(messages = conv.messages.take(i))
+        current = trimmed
+        store.saveConversation(trimmed)
         refresh()
     }
 
