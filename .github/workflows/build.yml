@@ -34,6 +34,27 @@ jobs:
       run: |
         set -o pipefail
         ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee gradle-out.txt
+    - name: Annotate errors
+      if: failure()
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        p = Path("gradle-out.txt")
+        if not p.exists():
+            print("::error::gradle-out.txt missing")
+            raise SystemExit
+        n = 0
+        for line in p.read_text(errors="replace").splitlines():
+            if line.startswith("e:") or "Unresolved" in line or "FAILED" in line:
+                print(f"::error::{line[:300]}")
+                n += 1
+                if n >= 40:
+                    break
+        if n == 0:
+            tail = p.read_text(errors="replace").splitlines()[-30:]
+            for line in tail:
+                print(f"::error::{line[:300]}")
+        PY
     - name: Upload logs
       if: always()
       uses: actions/upload-artifact@v4
@@ -42,6 +63,7 @@ jobs:
         path: gradle-out.txt
         if-no-files-found: ignore
     - name: Upload APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: AriAi-debug
