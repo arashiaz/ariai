@@ -294,9 +294,18 @@ private fun PlusSheet(vm: AriAiViewModel, onPhoto: () -> Unit, onCamera: () -> U
         ) {
             Handle()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                PlusTile("Upload File", Icons.Filled.Email) { onFile() }
-                PlusTile("Photo", Icons.Filled.Star) { onPhoto() }
-                PlusTile("Take Picture", Icons.Filled.Add) { onCamera() }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Email, 1, Modifier.size(64.dp), onFile)
+                    Text("File", color = Ink, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Star, 0, Modifier.size(64.dp), onPhoto)
+                    Text("Gallery", color = Ink, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Add, 2, Modifier.size(64.dp), onCamera)
+                    Text("Lens", color = Ink, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                }
             }
             Spacer(Modifier.height(16.dp))
             SheetRow("Extensions", Icons.Filled.Build) { vm.go(Screen.Extensions) }
@@ -353,89 +362,94 @@ private fun ProviderSheet(vm: AriAiViewModel) {
 
 @Composable
 private fun Drawer(vm: AriAiViewModel) {
-    Box(Modifier.fillMaxSize().background(Color(0x66000000)).clickable { vm.drawerOpen = false }) {
+    Overlay({ vm.drawerOpen = false }) {
         Column(
-            Modifier.fillMaxHeight().fillMaxWidth(0.86f).align(Alignment.CenterStart)
-                .clip(RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp))
-                .background(CardBg.copy(alpha = 0.88f))
-                .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp))
-                .clickable(enabled = false) {}.padding(20.dp)
+            Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+                .clip(RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp))
+                .background(CardBg.copy(alpha = 0.92f))
+                .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp))
+                .padding(18.dp)
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Edit, null, tint = Ink, modifier = Modifier.size(16.dp).clickable {
+            Handle()
+            Glass(Modifier.fillMaxWidth(), 26) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(vm.userName, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Ink, modifier = Modifier.clickable {
                             vm.setUser(if (vm.userName == "User") "Ari" else "User")
                         })
-                        Spacer(Modifier.width(6.dp))
-                        Text(vm.userName, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, color = Ink)
+                        Text(vm.greeting, color = Mute, fontSize = 13.sp)
                     }
-                    Text("👋 ${vm.greeting}", color = Mute, fontSize = 13.sp)
-                }
-                Spacer(Modifier.width(10.dp))
-                Box(Modifier.size(52.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
-            }
-            Spacer(Modifier.height(18.dp))
-            MenuLine("Search Chats", Icons.Filled.Search) { vm.go(Screen.SearchChats) }
-            MenuLine("Chat History", Icons.Filled.List) { vm.go(Screen.ChatHistory) }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                Text("New", fontWeight = FontWeight.SemiBold, color = Ink)
-                Icon(Icons.Filled.Add, null, tint = Ink, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(10.dp))
-                Box {
-                    Box(
-                        Modifier.clip(RoundedCornerShape(20.dp)).background(AccentSoft).clickable { vm.newMenu = !vm.newMenu }.padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) { Text("Chat", color = Ink, fontWeight = FontWeight.Medium) }
-                    if (vm.newMenu) {
-                        Column(
-                            Modifier.padding(top = 44.dp).clip(RoundedCornerShape(14.dp)).background(CardBg).border(1.dp, Chip, RoundedCornerShape(14.dp)).padding(8.dp)
-                        ) {
-                            MenuLine("AI Translator", Icons.Filled.Edit) {
-                                vm.newMenu = false
-                                vm.openNewChat()
-                                vm.input = "Translate: "
-                            }
-                            MenuLine("Image Generation", Icons.Filled.Star) {
-                                vm.newMenu = false
-                                vm.openNewChat()
-                                vm.input = "Generate image: "
-                            }
-                        }
-                    }
+                    Glyph(Icons.Filled.Close, 0, Modifier.size(40.dp)) { vm.drawerOpen = false }
                 }
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Search, 2, Modifier.size(58.dp)) { vm.go(Screen.SearchChats) }
+                    Spacer(Modifier.height(6.dp))
+                    Text("Find", color = Ink, fontSize = 12.sp)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.List, 1, Modifier.size(58.dp)) { vm.go(Screen.ChatHistory) }
+                    Spacer(Modifier.height(6.dp))
+                    Text("Archive", color = Ink, fontSize = 12.sp)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Add, 0, Modifier.size(58.dp)) { vm.openNewChat() }
+                    Spacer(Modifier.height(6.dp))
+                    Text("Blank", color = Ink, fontSize = 12.sp)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Edit, 3, Modifier.size(58.dp)) {
+                        vm.openNewChat()
+                        vm.input = "Translate: "
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text("Translate", color = Ink, fontSize = 12.sp)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text("Threads", color = Section, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             val filtered = vm.conversations
             if (filtered.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("No conversations", color = Ink, fontSize = 16.sp)
+                    Text("Nothing here yet — tap Blank", color = Mute, fontSize = 15.sp)
                 }
             } else {
                 LazyColumn(Modifier.weight(1f)) {
                     items(filtered, key = { it.id }) { c ->
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { vm.openConv(c.id) }.padding(10.dp)) {
-                            Column(Modifier.weight(1f)) {
-                                Text(c.title, color = Ink, maxLines = 1)
-                                Text(c.preview, color = Mute, fontSize = 12.sp, maxLines = 1)
-                            }
+                        Glass(Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { vm.openConv(c.id) }, 16) {
+                            Text(c.title, color = Ink, maxLines = 1, fontWeight = FontWeight.Medium)
+                            Text(c.preview, color = Mute, fontSize = 12.sp, maxLines = 1)
                         }
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
-                Spacer(Modifier.width(10.dp))
-                Text(vm.selectedAssistant?.name ?: "Default Assistant", color = Ink, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                Icon(Icons.Filled.Person, null, tint = Ink)
+            Spacer(Modifier.height(8.dp))
+            Glass(Modifier.fillMaxWidth().clickable { vm.go(Screen.Assistant) }, 22) {
+                Text("Voice of the room", color = Mute, fontSize = 11.sp)
+                Text(vm.selectedAssistant?.name ?: "Default Assistant", color = Ink, fontWeight = FontWeight.SemiBold)
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                RoundIcon(Icons.Filled.Settings) { vm.go(Screen.Settings) }
-                RoundIcon(Icons.Filled.List) { vm.go(Screen.Statistics) }
-                RoundIcon(Icons.Filled.Person) { vm.go(Screen.Assistant) }
-                RoundIcon(Icons.Filled.Star) { vm.go(Screen.ModelSettings) }
-                RoundIcon(Icons.Filled.Person) { vm.go(Screen.Assistant) }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Settings, 1, Modifier.size(52.dp)) { vm.go(Screen.Settings) }
+                    Text("Studio", color = Mute, fontSize = 11.sp)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Star, 2, Modifier.size(52.dp)) { vm.go(Screen.Statistics) }
+                    Text("Pulse", color = Mute, fontSize = 11.sp)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Build, 3, Modifier.size(52.dp)) { vm.go(Screen.ModelSettings) }
+                    Text("Models", color = Mute, fontSize = 11.sp)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Glyph(Icons.Filled.Home, 0, Modifier.size(52.dp)) { vm.go(Screen.Theme) }
+                    Text("Light", color = Mute, fontSize = 11.sp)
+                }
             }
         }
     }
@@ -443,45 +457,37 @@ private fun Drawer(vm: AriAiViewModel) {
 
 @Composable
 private fun SettingsPage(vm: AriAiViewModel) {
-    PageScaffold("Settings", onBack = { vm.go(Screen.Chat) }) {
+    PageScaffold("Studio", onBack = { vm.go(Screen.Chat) }) {
         if (!vm.configured) {
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(DangerBg).padding(16.dp)
-            ) {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Please configure API and model", fontWeight = FontWeight.SemiBold, color = DangerInk, fontSize = 16.sp)
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Filled.Info, null, tint = DangerInk)
-                    }
-                    Text("You haven't configured API and model yet, please configure first", color = DangerInk, fontSize = 13.sp, textAlign = TextAlign.End)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Configure", color = Link, fontWeight = FontWeight.Medium, modifier = Modifier.clickable { vm.go(Screen.Providers) })
-                }
+            Glass(Modifier.fillMaxWidth(), 20) {
+                Text("Keys still sleeping", fontWeight = FontWeight.SemiBold, color = DangerInk)
+                Text("Drop an API key on a provider card to wake the models.", color = DangerInk, fontSize = 13.sp)
+                Text("Open keys", color = Link, modifier = Modifier.clickable { vm.go(Screen.Providers) }.padding(top = 8.dp))
             }
+            Spacer(Modifier.height(10.dp))
         }
-        Shutter("Look & feel", "Theme and preferences", Icons.Filled.Star, true) {
-            SettingRow("Color Mode", vm.colorMode, Icons.Filled.Star) { vm.go(Screen.Theme) }
-            SettingRow("Preferences", "Theme, notifications, UI", Icons.Filled.Settings) { vm.go(Screen.Preferences) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HubCard("Keys", "Providers", Icons.Filled.Person, 0, Modifier.weight(1f)) { vm.go(Screen.Providers) }
+            HubCard("Look", vm.colorMode, Icons.Filled.Star, 1, Modifier.weight(1f)) { vm.go(Screen.Theme) }
         }
-        Shutter("People", "Assistants and skills", Icons.Filled.Person) {
-            SettingRow("Assistant", "Personalized agents", Icons.Filled.Person) { vm.go(Screen.Assistant) }
-            SettingRow("Extensions", "Prompts and skills", Icons.Filled.Build) { vm.go(Screen.Extensions) }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HubCard("Voice", "Speech", Icons.Filled.Notifications, 2, Modifier.weight(1f)) { vm.go(Screen.Speech) }
+            HubCard("Pulse", "Stats", Icons.Filled.List, 3, Modifier.weight(1f)) { vm.go(Screen.Statistics) }
         }
-        Shutter("Models", "Providers and speech", Icons.Filled.Settings, true) {
-            SettingRow("Default Model", "Chat / fast / translate", Icons.Filled.Star) { vm.go(Screen.ModelSettings) }
-            SettingRow("Providers", "Keys and models", Icons.Filled.Person) { vm.go(Screen.Providers) }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HubCard("Agents", "Personas", Icons.Filled.Person, 3, Modifier.weight(1f)) { vm.go(Screen.Assistant) }
+            HubCard("Vault", "Backup", Icons.Filled.Send, 0, Modifier.weight(1f)) { vm.go(Screen.Backup) }
+        }
+        Shutter("More rooms", "Toggles, logs, extras", Icons.Filled.Build, false) {
+            SettingRow("Preferences", "Input and haptics", Icons.Filled.Settings) { vm.go(Screen.Preferences) }
+            SettingRow("Default models", "Chat slots", Icons.Filled.Star) { vm.go(Screen.ModelSettings) }
             SettingRow("Search", "DuckDuckGo", Icons.Filled.Home) { vm.go(Screen.SearchService) }
-            SettingRow("Speech", "TTS", Icons.Filled.Notifications) { vm.go(Screen.Speech) }
-            SettingRow("MCP", "Tool servers", Icons.Filled.Build) { vm.go(Screen.Mcp) }
-            SettingRow("Web Server", "On-device flag", Icons.Filled.Settings) { vm.go(Screen.WebServer) }
-        }
-        Shutter("Vault", "Backup and logs", Icons.Filled.List) {
-            SettingRow("Data Backup", "Export / restore", Icons.Filled.Settings) { vm.go(Screen.Backup) }
-            SettingRow("Storage", "${vm.conversations.size} chats", Icons.Filled.Send) { vm.clearStorage() }
+            SettingRow("MCP", "Tools", Icons.Filled.Build) { vm.go(Screen.Mcp) }
+            SettingRow("Web flag", "", Icons.Filled.Settings) { vm.go(Screen.WebServer) }
+            SettingRow("Logs", "", Icons.Filled.List) { vm.go(Screen.Logs) }
             SettingRow("About", "", Icons.Filled.Info) { vm.go(Screen.About) }
-            SettingRow("Docs", "", Icons.Filled.Info) { vm.go(Screen.Docs) }
-            SettingRow("Request Logs", "", Icons.Filled.List) { vm.go(Screen.Logs) }
         }
     }
 }
