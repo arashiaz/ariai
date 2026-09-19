@@ -24,31 +24,31 @@ data class AriPalette(
 )
 
 private val LightPal = AriPalette(
-    page = Color(0xFFF3F4F8),
-    card = Color(0xFFFFFFFF),
-    ink = Color(0xFF1C1C1E),
-    mute = Color(0xFF8E8E93),
-    accent = Color(0xFF3D5AFE),
-    accentSoft = Color(0xFFE8EEFF),
-    chip = Color(0xFFF0F1F5),
-    dangerBg = Color(0xFFFFE8E6),
-    dangerInk = Color(0xFF5C2B29),
-    link = Color(0xFF3F51B5),
-    section = Color(0xFF5C6BC0)
+    page = Color(0xFFE7F1EE),
+    card = Color(0xF2FFFFFF),
+    ink = Color(0xFF142421),
+    mute = Color(0xFF5F746F),
+    accent = Color(0xFF0F766E),
+    accentSoft = Color(0xFFD1FAF4),
+    chip = Color(0xFFDCEBE6),
+    dangerBg = Color(0xFFFFE4DC),
+    dangerInk = Color(0xFF9A3412),
+    link = Color(0xFF0E7490),
+    section = Color(0xFF0F766E)
 )
 
 private val DarkPal = AriPalette(
-    page = Color(0xFF0E1116),
-    card = Color(0xFF1A1F27),
-    ink = Color(0xFFF2F4F8),
-    mute = Color(0xFF9AA3B2),
-    accent = Color(0xFF8AB4FF),
-    accentSoft = Color(0xFF243044),
-    chip = Color(0xFF242A33),
-    dangerBg = Color(0xFF3A1F1C),
-    dangerInk = Color(0xFFFFB4AB),
-    link = Color(0xFF9FA8DA),
-    section = Color(0xFF9FA8DA)
+    page = Color(0xFF071310),
+    card = Color(0xE6182A26),
+    ink = Color(0xFFE7F4F0),
+    mute = Color(0xFF8AA39C),
+    accent = Color(0xFF2DD4BF),
+    accentSoft = Color(0xFF12352F),
+    chip = Color(0xFF1C2E2A),
+    dangerBg = Color(0xFF3B1D16),
+    dangerInk = Color(0xFFFDBA74),
+    link = Color(0xFF5EEAD4),
+    section = Color(0xFF5EEAD4)
 )
 
 val LocalAri = staticCompositionLocalOf { LightPal }
@@ -76,17 +76,11 @@ fun AriAiTheme(mode: String = "System", content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalAri provides pal) {
         MaterialTheme(
             colorScheme = if (dark) darkColorScheme(
-                primary = pal.accent,
-                background = pal.page,
-                surface = pal.card,
-                onBackground = pal.ink,
-                onSurface = pal.ink
+                primary = pal.accent, background = pal.page, surface = pal.card,
+                onBackground = pal.ink, onSurface = pal.ink
             ) else lightColorScheme(
-                primary = pal.accent,
-                background = pal.page,
-                surface = pal.card,
-                onBackground = pal.ink,
-                onSurface = pal.ink
+                primary = pal.accent, background = pal.page, surface = pal.card,
+                onBackground = pal.ink, onSurface = pal.ink
             ),
             content = content
         )

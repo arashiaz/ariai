@@ -129,14 +129,15 @@ fun AriAiApp(vm: AriAiViewModel) {
         vm.snack?.let { snack.showSnackbar(it); vm.snack = null }
     }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Page)
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .imePadding()
-        ) {
+        Box(Modifier.fillMaxSize()) {
+            AuroraBackdrop()
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
             when (vm.screen) {
                 Screen.Chat -> ChatPage(vm)
                 Screen.Settings -> SettingsPage(vm)
@@ -179,6 +180,7 @@ fun AriAiApp(vm: AriAiViewModel) {
             if (vm.mcpImport) ImportMcp(vm)
             vm.mcpDraft?.let { McpEditor(vm, it) }
             SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).padding(16.dp))
+            }
         }
     }
 }
@@ -186,20 +188,26 @@ fun AriAiApp(vm: AriAiViewModel) {
 @Composable
 private fun ChatPage(vm: AriAiViewModel) {
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconBtn(Icons.Filled.Menu) { vm.drawerOpen = true }
-            Text("New Chat", color = Ink, fontWeight = FontWeight.Medium, fontSize = 18.sp)
-            Spacer(Modifier.weight(1f))
-            IconBtn(Icons.Filled.List) { vm.go(Screen.ChatHistory) }
-            IconBtn(Icons.Filled.Email) { vm.openNewChat() }
+        Glass(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), radius = 28) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconBtn(Icons.Filled.Menu) { vm.drawerOpen = true }
+                Column(Modifier.weight(1f)) {
+                    Text("AriAi", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(vm.current?.title ?: "New conversation", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                }
+                IconBtn(Icons.Filled.List) { vm.go(Screen.ChatHistory) }
+                IconBtn(Icons.Filled.Email) { vm.openNewChat() }
+            }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val msgs = vm.current?.messages.orEmpty()
             if (msgs.isEmpty()) {
-                Box(Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Glass(Modifier.padding(28.dp), 28) {
+                        Text("A quiet glass room", color = Accent, fontWeight = FontWeight.SemiBold)
+                        Text("Write below. Replies stream in softly.", color = Mute, fontSize = 14.sp)
+                    }
+                }
             } else {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(msgs, key = { it.id }) { Bubble(it) }
@@ -225,13 +233,7 @@ private fun ChatPage(vm: AriAiViewModel) {
 
 @Composable
 private fun Composer(vm: AriAiViewModel) {
-    Column(
-        Modifier
-            .padding(12.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(Color(0xFFEDEEF2))
-            .padding(10.dp)
-    ) {
+    Glass(Modifier.padding(12.dp), 28) {
         BasicTextField(
             value = vm.input,
             onValueChange = { v ->
@@ -273,8 +275,9 @@ private fun Bubble(m: ChatMessage) {
     val mine = m.role == ChatMessage.Role.User
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.Start else Arrangement.End) {
         Column(
-            Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(16.dp))
-                .background(if (mine) AccentSoft else CardBg)
+            Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(20.dp))
+                .background(if (mine) Accent.copy(alpha = 0.18f) else CardBg.copy(alpha = 0.8f))
+                .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                 .padding(12.dp)
         ) {
             if (m.attachmentName != null) Text(m.attachmentName, color = Accent, fontSize = 12.sp)
@@ -353,7 +356,10 @@ private fun Drawer(vm: AriAiViewModel) {
     Box(Modifier.fillMaxSize().background(Color(0x66000000)).clickable { vm.drawerOpen = false }) {
         Column(
             Modifier.fillMaxHeight().fillMaxWidth(0.86f).align(Alignment.CenterStart)
-                .background(Page).clickable(enabled = false) {}.padding(20.dp)
+                .clip(RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp))
+                .background(CardBg.copy(alpha = 0.88f))
+                .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp))
+                .clickable(enabled = false) {}.padding(20.dp)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
@@ -367,7 +373,7 @@ private fun Drawer(vm: AriAiViewModel) {
                     Text("👋 ${vm.greeting}", color = Mute, fontSize = 13.sp)
                 }
                 Spacer(Modifier.width(10.dp))
-                Box(Modifier.size(52.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFE91E8C), Color(0xFF8BC34A)))))
+                Box(Modifier.size(52.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
             }
             Spacer(Modifier.height(18.dp))
             MenuLine("Search Chats", Icons.Filled.Search) { vm.go(Screen.SearchChats) }
@@ -418,7 +424,7 @@ private fun Drawer(vm: AriAiViewModel) {
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFE91E8C), Color(0xFF8BC34A)))))
+                Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
                 Spacer(Modifier.width(10.dp))
                 Text(vm.selectedAssistant?.name ?: "Default Assistant", color = Ink, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 Icon(Icons.Filled.Person, null, tint = Ink)
@@ -454,32 +460,28 @@ private fun SettingsPage(vm: AriAiViewModel) {
                 }
             }
         }
-        SectionLabel("General Settings")
-        Group {
+        Shutter("Look & feel", "Theme and preferences", Icons.Filled.Star, true) {
             SettingRow("Color Mode", vm.colorMode, Icons.Filled.Star) { vm.go(Screen.Theme) }
-            SettingRow("Preferences", "Theme, notifications, UI and general settings", Icons.Filled.Settings) { vm.go(Screen.Preferences) }
-            SettingRow("Assistant", "Set up personalized assistants (agents)", Icons.Filled.Person) { vm.go(Screen.Assistant) }
-            SettingRow("Extensions", "Manage prompt injections, skills and more", Icons.Filled.Build) { vm.go(Screen.Extensions) }
+            SettingRow("Preferences", "Theme, notifications, UI", Icons.Filled.Settings) { vm.go(Screen.Preferences) }
         }
-        SectionLabel("Models & Services")
-        Group {
-            SettingRow("Default Model and Prompt", "Set default models for each feature", Icons.Filled.Star) { vm.go(Screen.ModelSettings) }
-            SettingRow("Providers", "Configure AI providers", Icons.Filled.Person) { vm.go(Screen.Providers) }
-            SettingRow("Search Service", "Set up search service", Icons.Filled.Home) { vm.go(Screen.SearchService) }
-            SettingRow("Speech Services", "Configure text-to-speech and speech recognition", Icons.Filled.Notifications) { vm.go(Screen.Speech) }
-            SettingRow("MCP", "Configure MCP Servers", Icons.Filled.Build) { vm.go(Screen.Mcp) }
-            SettingRow("Web Server", "Allow you access AriAi via Web", Icons.Filled.Settings) { vm.go(Screen.WebServer) }
+        Shutter("People", "Assistants and skills", Icons.Filled.Person) {
+            SettingRow("Assistant", "Personalized agents", Icons.Filled.Person) { vm.go(Screen.Assistant) }
+            SettingRow("Extensions", "Prompts and skills", Icons.Filled.Build) { vm.go(Screen.Extensions) }
         }
-        SectionLabel("Data Settings")
-        Group {
-            SettingRow("Data Backup", "Backup and restore app data", Icons.Filled.Settings) { vm.go(Screen.Backup) }
-            SettingRow("Storage Management", "files, ${vm.conversations.size} chats", Icons.Filled.Send) { vm.clearStorage() }
+        Shutter("Models", "Providers and speech", Icons.Filled.Settings, true) {
+            SettingRow("Default Model", "Chat / fast / translate", Icons.Filled.Star) { vm.go(Screen.ModelSettings) }
+            SettingRow("Providers", "Keys and models", Icons.Filled.Person) { vm.go(Screen.Providers) }
+            SettingRow("Search", "DuckDuckGo", Icons.Filled.Home) { vm.go(Screen.SearchService) }
+            SettingRow("Speech", "TTS", Icons.Filled.Notifications) { vm.go(Screen.Speech) }
+            SettingRow("MCP", "Tool servers", Icons.Filled.Build) { vm.go(Screen.Mcp) }
+            SettingRow("Web Server", "On-device flag", Icons.Filled.Settings) { vm.go(Screen.WebServer) }
         }
-        SectionLabel("About")
-        Group {
-            SettingRow("About", "About this app", Icons.Filled.Info) { vm.go(Screen.About) }
-            SettingRow("Documentation", "View app usage instructions and help", Icons.Filled.Info) { vm.go(Screen.Docs) }
-            SettingRow("Request Logs", "Inspect logs", Icons.Filled.List) { vm.go(Screen.Logs) }
+        Shutter("Vault", "Backup and logs", Icons.Filled.List) {
+            SettingRow("Data Backup", "Export / restore", Icons.Filled.Settings) { vm.go(Screen.Backup) }
+            SettingRow("Storage", "${vm.conversations.size} chats", Icons.Filled.Send) { vm.clearStorage() }
+            SettingRow("About", "", Icons.Filled.Info) { vm.go(Screen.About) }
+            SettingRow("Docs", "", Icons.Filled.Info) { vm.go(Screen.Docs) }
+            SettingRow("Request Logs", "", Icons.Filled.List) { vm.go(Screen.Logs) }
         }
     }
 }
@@ -573,7 +575,7 @@ private fun AssistantPage(vm: AriAiViewModel) {
         vm.assistants.filter { it.name.contains(q, true) }.forEach { a ->
             var prompt by remember(a.id) { mutableStateOf(a.prompt) }
             CardRow(a.name, a.prompt.take(40), Icons.Filled.MoreVert, leading = {
-                Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFE91E8C), Color(0xFF8BC34A)))))
+                Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
             }) {
                 vm.selectedAssistantId = a.id
                 vm.store.setStr("sel_assistant", a.id)
@@ -613,19 +615,6 @@ private fun ModelPage(vm: AriAiViewModel) {
         ModelPick("OCR Model", "Model used for optical character recognition on images", vm.ocrModel, vm) { vm.pickSlot("ocr", it) }
         SectionLabel("Compress Model")
         ModelPick("Compress Model", "Model for compressing conversation history", vm.compressModel, vm) { vm.pickSlot("cmp", it) }
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { vm.go(Screen.Prompts) }) {
-                Icon(Icons.Filled.Edit, null, tint = Mute)
-                Text("Prompts", color = Mute, fontSize = 12.sp)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.clip(RoundedCornerShape(16.dp)).background(AccentSoft).padding(8.dp)) {
-                    Icon(Icons.Filled.Person, null, tint = Accent)
-                }
-                Text("Model", color = Ink, fontSize = 12.sp)
-            }
-        }
     }
 }
 
