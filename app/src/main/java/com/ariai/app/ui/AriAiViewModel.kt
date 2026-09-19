@@ -440,7 +440,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
         providers.forEach { p ->
             if (p.model == id || p.models.contains(id)) return id
         }
-        return providers.find { it.id == id }?.model?.ifBlank { it.name } ?: id
+        return providers.find { it.id == id }?.let { pr -> pr.model.ifBlank { pr.name } } ?: id
     }
 
     fun allModels(): List<String> = providers.flatMap { if (it.models.isEmpty()) listOfNotNull(it.model.takeIf { m -> m.isNotBlank() }) else it.models }.distinct()
