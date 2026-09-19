@@ -5,8 +5,21 @@ data class Provider(
     val name: String,
     val baseUrl: String,
     val model: String,
-    val apiKey: String = "",
-    val isBuiltIn: Boolean = false
+    val apiKey: String = ""
+)
+
+data class Assistant(
+    val id: String,
+    val name: String
+)
+
+data class McpServer(
+    val id: String,
+    val name: String,
+    val url: String,
+    val enabled: Boolean = true,
+    val transport: String = "http",
+    val headers: String = ""
 )
 
 data class ChatMessage(
@@ -24,16 +37,12 @@ data class Conversation(
     val preview: String,
     val updatedAt: Long,
     val messages: List<ChatMessage> = emptyList(),
-    val mode: ChatMode = ChatMode.Chat,
     val providerId: String? = null
 )
 
-enum class ChatMode(val labelFa: String, val starter: String) {
-    Chat("گفتگو", ""),
-    Image("تصویر", "یک تصویر توصیف کن و ایده ساخت آن را بده: "),
-    Write("نوشتن", "متن زیر را حرفه‌ای بنویس: "),
-    Code("کد", "این مسئله را با کد حل کن و توضیح بده:\n"),
-    Translate("ترجمه", "این متن را ترجمه کن:\n"),
-    Summarize("خلاصه", "این متن را خلاصه کن:\n"),
-    Analyze("تحلیل", "این موضوع را تحلیل کن:\n")
+enum class Screen {
+    Chat, Settings, Preferences, General, Notifications, Theme,
+    Assistant, Extensions, ModelSettings, Providers, Speech, Mcp,
+    Statistics, SearchService, WebServer, Backup, About, Docs, Logs,
+    ChatHistory, SearchChats, QuickMessages, Prompts, Skills, Workspace
 }

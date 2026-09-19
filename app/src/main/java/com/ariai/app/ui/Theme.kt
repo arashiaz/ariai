@@ -1,32 +1,32 @@
 package com.ariai.app.ui
 
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-val Bg = Color(0xFF0B0F14)
-val Surface = Color(0xFF121821)
-val Card = Color(0xFF1A2230)
-val Accent = Color(0xFF7C5CFF)
-val Accent2 = Color(0xFF3ECFCF)
-val TextPri = Color(0xFFF2F4F8)
-val TextSec = Color(0xFF9AA4B2)
-
-private val scheme: ColorScheme = darkColorScheme(
-    primary = Accent,
-    onPrimary = Color.White,
-    background = Bg,
-    onBackground = TextPri,
-    surface = Surface,
-    onSurface = TextPri,
-    surfaceVariant = Card,
-    onSurfaceVariant = TextSec,
-    secondary = Accent2
-)
+val Page = Color(0xFFF3F4F8)
+val CardBg = Color(0xFFFFFFFF)
+val Ink = Color(0xFF1C1C1E)
+val Mute = Color(0xFF8E8E93)
+val Accent = Color(0xFF3D5AFE)
+val AccentSoft = Color(0xFFE8EEFF)
+val Chip = Color(0xFFF0F1F5)
+val DangerBg = Color(0xFFFFE8E6)
+val DangerInk = Color(0xFF5C2B29)
+val Link = Color(0xFF3F51B5)
+val Section = Color(0xFF5C6BC0)
 
 @Composable
 fun AriAiTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = scheme, content = content)
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = Accent,
+            background = Page,
+            surface = CardBg,
+            onBackground = Ink,
+            onSurface = Ink
+        ),
+        content = content
+    )
 }
