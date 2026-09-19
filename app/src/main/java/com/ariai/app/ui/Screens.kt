@@ -560,7 +560,7 @@ private fun ModelPage(vm: AriAiViewModel) {
 private fun ModelPick(title: String, hint: String, id: String, vm: AriAiViewModel, onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     CardRow(title, if (id.isBlank()) "Select Model" else vm.modelName(id), Icons.Filled.Person) { open = !open }
-    Text(hint, color = Mute, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, bottom = 8.dp), textAlign = TextAlign.End)
+    Text(hint, color = Mute, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp), textAlign = TextAlign.End)
     if (open) {
         if (vm.providers.isEmpty()) Text("Add a provider first", color = Mute, modifier = Modifier.padding(8.dp))
         vm.providers.forEach { p ->
