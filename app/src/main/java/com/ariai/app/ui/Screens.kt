@@ -620,8 +620,6 @@ private fun AssistantPage(vm: AriAiViewModel) {
             CardRow(a.name, a.prompt.take(40), Icons.Filled.MoreVert, leading = {
                 Box(Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
             }) {
-                vrGradient(listOf(Accent, Color(0xFFC45C26)))))
-            }) {
                 vm.selectedAssistantId = a.id
                 vm.store.setStr("sel_assistant", a.id)
                 vm.go(Screen.Chat)
