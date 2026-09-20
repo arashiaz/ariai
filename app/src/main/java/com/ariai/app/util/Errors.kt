@@ -2,7 +2,7 @@ package com.ariai.app.util
 
 object Errors {
     fun friendly(e: Throwable): String {
-        val m = e.message.orEmpty()
+        val m = (e.javaClass.simpleName + " " + e.message.orEmpty())
         return when {
             m.contains("401") || m.contains("invalid_api_key", true) || m.contains("authentication", true) ->
                 "This API key was rejected. Open Providers and save a valid key."
