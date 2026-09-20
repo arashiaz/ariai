@@ -34,4 +34,18 @@ class ErrorsTest {
         val s = Errors.friendly(Exception(""))
         assertTrue(s.contains("Exception") || s.contains("failed"))
     }
+    @Test fun redactJsonCredential() {
+        val out = Errors.redact("""{"apiKey":"super-secret","authorization":"Bearer hidden-token","x-goog-api-key":"gemini-secret"}""")
+        assertFalse(out.contains("super-secret"))
+        assertFalse(out.contains("hidden-token"))
+        assertFalse(out.contains("gemini-secret"))
+        assertTrue(out.contains("***"))
+    }
+
+    @Test fun redactHeaderCredential() {
+        val out = Errors.redact("x-api-key: secret-header")
+        assertFalse(out.contains("secret-header"))
+        assertTrue(out.contains("***"))
+    }
+
 }
