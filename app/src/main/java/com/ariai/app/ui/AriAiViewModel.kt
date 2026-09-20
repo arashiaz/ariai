@@ -221,7 +221,10 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun reply(conv: Conversation) {
-        val p = selectedProvider ?: return
+        // Keep a conversation pinned to the provider it was created with.
+        // Changing the global provider while a chat is open must not silently
+        // route the existing conversation through a different backend.
+        val p = providers.find { it.id == conv.providerId } ?: selectedProvider ?: return
         sending = true
         viewModelScope.launch {
             try {
