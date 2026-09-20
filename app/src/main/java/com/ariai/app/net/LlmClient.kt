@@ -232,14 +232,8 @@ class LlmClient {
         }
     }
 
-    private fun parseModelIds(kind: String, body: String): List<String> {
-        val json = JSONObject(body)
-        val data = json.optJSONArray("data") ?: json.optJSONArray("models") ?: return emptyList()
-        return (0 until data.length()).map { i ->
-            val o = data.getJSONObject(i)
-            o.optString("id").ifBlank { o.optString("name") }.removePrefix("models/")
-        }.filter { it.isNotBlank() }.sorted()
-    }
+    private fun parseModelIds(kind: String, body: String): List<String> =
+        LlmJson.parseModelIds(body)
 
     private fun modelOrEmpty(p: Provider) = p.model
 
