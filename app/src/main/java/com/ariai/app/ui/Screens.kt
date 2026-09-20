@@ -291,8 +291,7 @@ private fun WorkspaceCard(title: String, subtitle: String, icon: ImageVector, mo
         radius = 20,
         onClick = onClick
     ) {
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(AccentSoft),
             contentAlignment = Alignment.Center
@@ -304,7 +303,8 @@ private fun WorkspaceCard(title: String, subtitle: String, icon: ImageVector, mo
             Text(title, color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Text(subtitle, color = Mute, fontSize = 11.sp)
         }
-        Text("›", color = Mute, fontSize = 18.sp)
+            Text("›", color = Mute, fontSize = 18.sp)
+        }
     }
 }
 
