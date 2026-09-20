@@ -44,6 +44,19 @@ class AppStore(context: Context) {
         val o = JSONObject(raw)
         val e = p.edit()
         o.keys().forEach { k ->
+            // Portable backups intentionally never restore credential fields.
+            if (k == "providers" || k == "mcp") {
+                val arr = o.optJSONArray(k) ?: return@forEach
+                val sanitized = JSONArray()
+                for (i in 0 until arr.length()) {
+                    val item = JSONObject(arr.getJSONObject(i).toString())
+                    if (k == "providers") item.put("apiKey", "")
+                    item.put("headers", "")
+                    sanitized.put(item)
+                }
+                e.putString(k, sanitized.toString())
+                return@forEach
+            }
             when (val v = o.get(k)) {
                 is Boolean -> e.putBoolean(k, v)
                 is Int -> e.putInt(k, v)
