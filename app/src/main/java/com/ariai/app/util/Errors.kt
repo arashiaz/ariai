@@ -18,7 +18,14 @@ object Errors {
     }
 
     fun redact(s: String): String =
-        s.replace(Regex("(?i)(api[_-]?key|authorization|bearer)\\s*[:=]\\s*\\S+"), "$1=***")
+        s.replace(
+            Regex("(?i)(api[_-]?key|authorization|bearer|x-api-key|x-goog-api-key)\\s*[:=]\\s*\\\\"?[^,;\\\\s}\\\\"']+"),
+            "$1=***"
+        )
+            .replace(
+                Regex("(?i)(\\"(?:api[_-]?key|authorization|x-api-key|x-goog-api-key)\\"\\s*:\\s*\\")[^\\"]*(\\")"),
+                "$1***$2"
+            )
             .replace(Regex("(?i)([?&](?:api[_-]?key|key|token|access_token|authorization)=)[^&\\s]+"), "$1***")
             .replace(Regex("sk-[A-Za-z0-9]{8,}"), "sk-***")
 }
