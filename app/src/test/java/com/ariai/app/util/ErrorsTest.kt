@@ -24,6 +24,12 @@ class ErrorsTest {
         assertTrue(out.contains("***"))
     }
 
+    @Test fun redactsQueryKey() {
+        val out = Errors.redact("https://example.com/v1?key=secret-value&x=1")
+        assertFalse(out.contains("secret-value"))
+        assertTrue(out.contains("key=***"))
+    }
+
     @Test fun emptyMessage() {
         val s = Errors.friendly(Exception(""))
         assertTrue(s.contains("Exception") || s.contains("failed"))
