@@ -7,6 +7,7 @@ import java.util.UUID
 
 class AppStore(context: Context) {
     private val p = context.getSharedPreferences("ariai", Context.MODE_PRIVATE)
+    private val secrets = SecretStore(context)
 
     fun bool(k: String, d: Boolean = false) = p.getBoolean(k, d)
     fun setBool(k: String, v: Boolean) = p.edit().putBoolean(k, v).apply()
@@ -16,9 +17,26 @@ class AppStore(context: Context) {
     fun setInt(k: String, v: Int) = p.edit().putInt(k, v).apply()
     fun inc(k: String) = setInt(k, int(k) + 1)
 
+    /**
+     * Export configuration without exporting provider credentials.
+     * Secrets live in Android Keystore-backed storage and are intentionally
+     * never included in portable backups.
+     */
     fun exportJson(): String {
         val o = JSONObject()
-        p.all.forEach { (k, v) -> o.put(k, v) }
+        p.all.forEach { (k, v) ->
+            if (k == "providers") {
+                val arr = JSONArray(v.toString())
+                for (i in 0 until arr.length()) {
+                    val provider = arr.getJSONObject(i)
+                    provider.put("apiKey", "")
+                    provider.put("headers", "")
+                }
+                o.put(k, arr)
+            } else {
+                o.put(k, v)
+            }
+        }
         return o.toString(2)
     }
 
@@ -38,24 +56,38 @@ class AppStore(context: Context) {
 
     fun providers(): List<Provider> {
         val list = parseArr("providers") { o ->
-            val models = mutableListOf<String>()
-            val m = o.optJSONArray("models")
-            if (m != null) for (i in 0 until m.length()) models += m.getString(i)
+            val id = o.getString("id")
+            val legacyKey = o.optString("apiKey")
+            val legacyHeaders = o.optString("headers")
+            val apiKey = secrets.get(apiKeySecret(id)).ifBlank { legacyKey }
+            val headers = secrets.get(headersSecret(id)).ifBlank { legacyHeaders }
             Provider(
-                o.getString("id"), o.getString("name"), o.optString("baseUrl"),
-                o.optString("model"), o.optString("apiKey"), models, o.optString("headers"),
-                o.optString("kind", "openai"), o.optDouble("temperature", 0.7).toFloat(), o.optInt("maxTokens", 4096),
-                o.optString("lastOk"), o.optBoolean("enabled", o.optString("apiKey").isNotBlank())
+                id, o.getString("name"), o.optString("baseUrl"),
+                o.optString("model"), apiKey, mutableListOf<String>().also { models ->
+                    val m = o.optJSONArray("models")
+                    if (m != null) for (i in 0 until m.length()) models += m.getString(i)
+                },
+                headers, o.optString("kind", "openai"),
+                o.optDouble("temperature", 0.7).toFloat(), o.optInt("maxTokens", 4096),
+                o.optString("lastOk"), o.optBoolean("enabled", apiKey.isNotBlank())
             )
         }
+
         val extra = catalog().filter { c -> list.none { it.id == c.id } }
-        return if (list.isEmpty()) {
-            saveProviders(catalog()); catalog()
-        } else if (extra.isNotEmpty()) {
-            val merged = extra + list
+        val merged = when {
+            list.isEmpty() -> catalog()
+            extra.isNotEmpty() -> extra + list
+            else -> list
+        }
+
+        // One-time migration: old versions stored credentials directly in JSON.
+        // saveProviders moves them to the Keystore-backed vault.
+        if (merged.any { it.apiKey.isNotBlank() || it.headers.isNotBlank() } ||
+            merged.size != list.size
+        ) {
             saveProviders(merged)
-            merged
-        } else list
+        }
+        return merged
     }
 
     companion object {
@@ -97,12 +129,34 @@ class AppStore(context: Context) {
         )
     }
 
-    fun saveProviders(list: List<Provider>) = saveArr("providers", list) { x ->
-        JSONObject().put("id", x.id).put("name", x.name).put("baseUrl", x.baseUrl)
-            .put("model", x.model).put("apiKey", x.apiKey)
-            .put("models", JSONArray(x.models)).put("headers", x.headers)
-            .put("kind", x.kind).put("temperature", x.temperature.toDouble()).put("maxTokens", x.maxTokens)
-            .put("lastOk", x.lastOk).put("enabled", x.enabled)
+    fun saveProviders(list: List<Provider>) {
+        val activeIds = list.map { it.id }.toSet()
+        list.forEach { x ->
+            secrets.put(apiKeySecret(x.id), x.apiKey)
+            secrets.put(headersSecret(x.id), x.headers)
+        }
+
+        // Remove credentials belonging to providers that no longer exist.
+        p.getString("providers", "[]")?.let { raw ->
+            try {
+                val old = JSONArray(raw)
+                for (i in 0 until old.length()) {
+                    val id = old.getJSONObject(i).optString("id")
+                    if (id.isNotBlank() && id !in activeIds) {
+                        secrets.remove(apiKeySecret(id))
+                        secrets.remove(headersSecret(id))
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+
+        saveArr("providers", list) { x ->
+            JSONObject().put("id", x.id).put("name", x.name).put("baseUrl", x.baseUrl)
+                .put("model", x.model).put("apiKey", "")
+                .put("models", JSONArray(x.models)).put("headers", "")
+                .put("kind", x.kind).put("temperature", x.temperature.toDouble()).put("maxTokens", x.maxTokens)
+                .put("lastOk", x.lastOk).put("enabled", x.enabled)
+        }
     }
 
     fun assistants(): List<Assistant> {
@@ -191,4 +245,6 @@ class AppStore(context: Context) {
         p.edit().putString(key, arr.toString()).apply()
     }
 
+    private fun apiKeySecret(id: String) = "provider_api_key_$id"
+    private fun headersSecret(id: String) = "provider_headers_$id"
 }
