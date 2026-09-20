@@ -2,22 +2,42 @@ package com.ariai.app.net
 
 /** Pure SSE framing helper. JSON/provider-specific parsing stays outside this class. */
 internal object SseFrames {
-    fun <T> consume(lines: Sequence<String>, parse: (String) -> T, onPiece: (T) -> Unit): Boolean {
+    fun consume(
+        lines: Sequence<String>,
+        parse: (String) -> String,
+        onPiece: (String) -> Unit
+    ): Boolean {
         var sawDone = false
+        var emitted = false
         val fallback = StringBuilder()
+
         for (line in lines) {
             when {
                 line.startsWith("data:") -> {
                     val data = line.removePrefix("data:").trim()
-                    if (data == "[DONE]") { sawDone = true; break }
-                    runCatching { parse(data) }.getOrNull()?.let(onPiece)
+                    if (data == "[DONE]") {
+                        sawDone = true
+                        break
+                    }
+                    runCatching { parse(data) }
+                        .getOrNull()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let {
+                            emitted = true
+                            onPiece(it)
+                        }
                 }
                 line.isNotBlank() && line.startsWith("{") -> fallback.append(line)
             }
         }
-        if (!sawDone && fallback.isNotEmpty()) {
-            runCatching { parse(fallback.toString()) }.getOrNull()?.let(onPiece)
+
+        if (!sawDone && !emitted && fallback.isNotEmpty()) {
+            runCatching { parse(fallback.toString()) }
+                .getOrNull()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let(onPiece)
         }
+
         return sawDone
     }
 }
