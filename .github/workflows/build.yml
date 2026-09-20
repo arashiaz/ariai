@@ -33,7 +33,7 @@ jobs:
     - name: Build with Gradle
       run: |
         set -o pipefail
-        ./gradlew assembleRelease assembleDebug --stacktrace --no-daemon 2>&1 | tee gradle-out.txt
+        ./gradlew testDebugUnitTest assembleRelease assembleDebug --stacktrace --no-daemon 2>&1 | tee gradle-out.txt
     - name: Annotate errors
       if: failure()
       run: |

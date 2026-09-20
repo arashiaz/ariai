@@ -140,9 +140,6 @@ fun AriAiApp(vm: AriAiViewModel) {
                     .navigationBarsPadding()
                     .imePadding()
             ) {
-            val tabScreens = setOf(Screen.Home, Screen.Chat, Screen.Tools, Screen.Profile, Screen.ChatHistory)
-            Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f).fillMaxWidth()) {
             when (vm.screen) {
                 Screen.Onboarding -> OnboardPage(vm)
                 Screen.Home -> HomePage(vm)
@@ -165,7 +162,7 @@ fun AriAiApp(vm: AriAiViewModel) {
                 Screen.SearchService -> SearchPage(vm)
                 Screen.WebServer -> WebPage(vm)
                 Screen.Backup -> BackupPage(vm)
-                Screen.About -> SimplePage(vm, "About", "AriAi 1.1 — a bring-your-own-key client. Keys never leave this phone except to the URL you set. Source: github.com/arashiaz/ariai")
+                Screen.About -> SimplePage(vm, "About", "AriAi 1.2 — a bring-your-own-key client. Keys never leave this phone except to the URL you set. Source: github.com/arashiaz/ariai")
                 Screen.Docs -> SimplePage(vm, "Documentation", "Settings → Providers → Name, Base URL (…/v1), API key, Fetch models. Then chat.")
                 Screen.Logs -> LogsPage(vm)
                 Screen.ChatHistory -> HistoryPage(vm)
@@ -174,9 +171,6 @@ fun AriAiApp(vm: AriAiViewModel) {
                 Screen.Prompts -> PromptsPage(vm)
                 Screen.Skills -> SimplePage(vm, "Agent Skills", "Skill packages are injected as extra system instructions via Prompts.")
                 Screen.Workspace -> SimplePage(vm, "Workspace", "Local files can be attached with + → Upload File.")
-            }
-            }
-            if (vm.screen in tabScreens) BottomBar(vm)
             }
             if (vm.drawerOpen) Drawer(vm)
             if (vm.plusOpen) PlusSheet(
@@ -199,68 +193,50 @@ fun AriAiApp(vm: AriAiViewModel) {
 }
 
 @Composable
-private fun BottomBar(vm: AriAiViewModel) {
-    val tab = vm.screen
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(28.dp)).background(CardBg.copy(alpha = 0.92f))
-            .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(28.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        NavItem("Home", Icons.Filled.Home, tab == Screen.Home) { vm.go(Screen.Home) }
-        NavItem("Chats", Icons.Filled.Email, tab == Screen.Chat || tab == Screen.ChatHistory) { vm.go(Screen.Chat) }
-        Box(
-            Modifier.size(56.dp).clip(CircleShape).background(Accent).clickable { vm.plusOpen = true; vm.go(Screen.Chat) },
-            contentAlignment = Alignment.Center
-        ) { Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
-        NavItem("Tools", Icons.Filled.Build, tab == Screen.Tools) { vm.go(Screen.Tools) }
-        NavItem("Profile", Icons.Filled.Person, tab == Screen.Profile) { vm.go(Screen.Profile) }
-    }
-}
-
-@Composable
-private fun NavItem(label: String, icon: ImageVector, on: Boolean, click: () -> Unit) {
-    Column(Modifier.clickable(onClick = click).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, null, tint = if (on) Accent else Mute, modifier = Modifier.size(22.dp))
-        Text(label, color = if (on) Accent else Mute, fontSize = 11.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal)
-    }
-}
-
-@Composable
 private fun HomePage(vm: AriAiViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("AriAi", color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Text("${vm.greeting}!", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 28.sp)
-                Text("What would you like to do today?", color = Mute, fontSize = 14.sp)
+                Text("AriAi", color = Ink, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text("One place for many models.", color = Mute, fontSize = 13.sp)
             }
-            Box(Modifier.size(42.dp).clip(CircleShape).background(AccentSoft).clickable { vm.go(Screen.Settings) }, contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Settings, null, tint = Accent)
-            }
+            IconBtn(Icons.Filled.Settings) { vm.go(Screen.Settings) }
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(28.dp))
+        Text("How can I help you today?", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 26.sp)
+        Spacer(Modifier.height(16.dp))
+        Box(
+            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(16.dp)).background(Accent).clickable { vm.openNewChat() },
+            contentAlignment = Alignment.Center
+        ) { Text("Start a new chat", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) }
+        Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ActionTile("Explain", "Simplify complex topics", Icons.Filled.Info, Modifier.weight(1f), 0) {
+            ActionTile("Explain", "Make ideas simple", Icons.Filled.Info, Modifier.weight(1f), 0) {
                 vm.startPrompt("Explain this in simple terms:\n")
             }
-            ActionTile("Write", "Create content", Icons.Filled.Edit, Modifier.weight(1f), 1) {
+            ActionTile("Write", "Draft content", Icons.Filled.Edit, Modifier.weight(1f), 1) {
                 vm.startPrompt("Write a clear draft about:\n")
             }
             ActionTile("Code", "Build and debug", Icons.Filled.Build, Modifier.weight(1f), 2) {
                 vm.startPrompt("Help me write and debug this code:\n")
             }
         }
-        Spacer(Modifier.height(14.dp))
-        HomeRow("Quick Chat", "Start a new conversation", Icons.Filled.Email) { vm.openNewChat() }
-        HomeRow("Choose a Model", "Select your AI provider", Icons.Filled.Star) { vm.providerSheet = true; vm.go(Screen.Chat) }
-        HomeRow("Explore Tools", "More powerful features", Icons.Filled.List) { vm.go(Screen.Tools) }
-        Spacer(Modifier.height(16.dp))
-        Glass(Modifier.fillMaxWidth().clickable { vm.go(Screen.Providers) }, 22) {
-            Text("Your AI, your keys", fontWeight = FontWeight.SemiBold, color = Ink)
-            Text(if (vm.configured) "Providers ready — tap to manage." else "Add an API key to wake the models.", color = Mute, fontSize = 13.sp)
+        Spacer(Modifier.height(10.dp))
+        HomeRow("Providers", if (vm.configured) "Connected" else "Add an API key", Icons.Filled.Person) { vm.go(Screen.Providers) }
+        HomeRow("Tools", "Search, files, speech", Icons.Filled.Build) { vm.go(Screen.Tools) }
+        Spacer(Modifier.height(18.dp))
+        Text("Recent chats", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Spacer(Modifier.height(8.dp))
+        if (vm.conversations.isEmpty()) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardBg).border(1.dp, Chip, RoundedCornerShape(16.dp)).padding(20.dp)) {
+                Text("No conversations yet", color = Ink, fontWeight = FontWeight.Medium)
+                Text("Start a chat to see it here.", color = Mute, fontSize = 13.sp)
+            }
+        } else {
+            vm.conversations.take(8).forEach { c ->
+                HomeRow(c.title, c.preview.take(72), Icons.Filled.Email) { vm.openConv(c.id) }
+            }
+            Text("See all", color = Link, modifier = Modifier.padding(8.dp).clickable { vm.go(Screen.ChatHistory) })
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -302,9 +278,8 @@ private fun HomeRow(title: String, sub: String, icon: ImageVector, onClick: () -
 
 @Composable
 private fun ToolsPage(vm: AriAiViewModel) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
-        Text("Tools", fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-        Text("More than just chat", color = Mute, fontSize = 14.sp)
+    PageScaffold("Tools", onBack = { vm.go(Screen.Home) }) {
+        Text("Only tools that actually run.", color = Mute, fontSize = 13.sp)
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             HubCard("Image", "Create from text", Icons.Filled.Star, 0, Modifier.weight(1f)) { vm.startPrompt("Describe an image concept I can refine:\n") }
@@ -353,8 +328,8 @@ private fun ProfilePage(vm: AriAiViewModel) {
 @Composable
 private fun OnboardPage(vm: AriAiViewModel) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text("AriAi 1.1", color = Accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Three breaths.", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 28.sp)
+        Text("AriAi", color = Accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Your AI, your keys.", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 28.sp)
         Spacer(Modifier.height(18.dp))
         Glass(Modifier.fillMaxWidth().clickable { vm.go(Screen.Providers) }, 22) {
             Text("1  Key", fontWeight = FontWeight.Bold, color = Accent)
@@ -371,7 +346,7 @@ private fun OnboardPage(vm: AriAiViewModel) {
             Text("Send one sentence. Tokens stream in.", color = Mute)
         }
         Spacer(Modifier.height(20.dp))
-        PrimaryBtn(if (vm.configured) "Enter the glass room" else "I'll add a key") { vm.finishOnboard() }
+        PrimaryBtn(if (vm.configured) "Continue" else "Add a provider") { vm.finishOnboard() }
         Text("Privacy", color = Link, modifier = Modifier.padding(top = 12.dp).clickable { vm.go(Screen.Privacy) })
     }
 }
@@ -400,7 +375,7 @@ private fun ChatPage(vm: AriAiViewModel) {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(msgs, key = { it.id }) { Bubble(it) }
                     if (vm.sending) item {
-                        Text("streaming… tap ■ to stop", color = Mute, fontSize = 12.sp, modifier = Modifier.padding(8.dp).clickable { vm.stop() })
+                        Text("Thinking… tap to stop", color = Mute, fontSize = 13.sp, modifier = Modifier.padding(8.dp).clickable { vm.stop() })
                     }
                     if (!vm.sending && msgs.any { it.role == ChatMessage.Role.User }) {
                         item {
@@ -488,6 +463,19 @@ private fun Bubble(m: ChatMessage) {
                 }
             }
             MarkdownText(m.text, light = true)
+            if (!mine && m.text.isNotBlank()) {
+                val ctx = LocalContext.current
+                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Copy", color = Link, fontSize = 12.sp, modifier = Modifier.clickable {
+                        val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        cm.setPrimaryClip(android.content.ClipData.newPlainText("ariai", m.text))
+                    })
+                    Text("Share", color = Link, fontSize = 12.sp, modifier = Modifier.clickable {
+                        val i = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, m.text)
+                        ctx.startActivity(android.content.Intent.createChooser(i, "Share"))
+                    })
+                }
+            }
         }
     }
 }
@@ -571,90 +559,26 @@ private fun Drawer(vm: AriAiViewModel) {
     Overlay({ vm.drawerOpen = false }) {
         Column(
             Modifier.fillMaxWidth().fillMaxHeight(0.92f)
-                .clip(RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp))
-                .background(CardBg.copy(alpha = 0.92f))
-                .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp))
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(CardBg)
                 .padding(18.dp)
         ) {
             Handle()
-            Glass(Modifier.fillMaxWidth(), 26) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Accent, Color(0xFFC45C26)))))
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(vm.userName, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Ink, modifier = Modifier.clickable {
-                            vm.setUser(if (vm.userName == "User") "Ari" else "User")
-                        })
-                        Text(vm.greeting, color = Mute, fontSize = 13.sp)
-                    }
-                    Glyph(Icons.Filled.Close, 0, Modifier.size(40.dp)) { vm.drawerOpen = false }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Glyph(Icons.Filled.Search, 2, Modifier.size(58.dp)) { vm.go(Screen.SearchChats) }
-                    Spacer(Modifier.height(6.dp))
-                    Text("Find", color = Ink, fontSize = 12.sp)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Glyph(Icons.Filled.List, 1, Modifier.size(58.dp)) { vm.go(Screen.ChatHistory) }
-                    Spacer(Modifier.height(6.dp))
-                    Text("Archive", color = Ink, fontSize = 12.sp)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Glyph(Icons.Filled.Add, 0, Modifier.size(58.dp)) { vm.openNewChat() }
-                    Spacer(Modifier.height(6.dp))
-                    Text("Blank", color = Ink, fontSize = 12.sp)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Glyph(Icons.Filled.Edit, 3, Modifier.size(58.dp)) {
-                        vm.openNewChat()
-                        vm.input = "Translate: "
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text("Translate", color = Ink, fontSize = 12.sp)
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            Text("Threads", color = Section, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(vm.userName, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Ink)
+            Text(vm.greeting, color = Mute, fontSize = 13.sp)
+            Spacer(Modifier.height(12.dp))
+            HomeRow("Search chats", "Find a thread", Icons.Filled.Search) { vm.go(Screen.SearchChats) }
+            HomeRow("History", "All conversations", Icons.Filled.List) { vm.go(Screen.ChatHistory) }
+            HomeRow("New chat", "Blank thread", Icons.Filled.Add) { vm.openNewChat() }
+            Spacer(Modifier.height(8.dp))
             val filtered = vm.conversations
             if (filtered.isEmpty()) {
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("Nothing here yet — tap Blank", color = Mute, fontSize = 15.sp)
-                }
+                Text("No chats yet", color = Mute, modifier = Modifier.padding(12.dp))
             } else {
                 LazyColumn(Modifier.weight(1f)) {
                     items(filtered, key = { it.id }) { c ->
-                        Glass(Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { vm.openConv(c.id) }, 16) {
-                            Text(c.title, color = Ink, maxLines = 1, fontWeight = FontWeight.Medium)
-                            Text(c.preview, color = Mute, fontSize = 12.sp, maxLines = 1)
-                        }
+                        HomeRow(c.title, c.preview.take(60), Icons.Filled.Email) { vm.openConv(c.id) }
                     }
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Glass(Modifier.fillMaxWidth().clickable { vm.go(Screen.Assistant) }, 22) {
-                Text("Voice of the room", color = Mute, fontSize = 11.sp)
-                Text(vm.selectedAssistant?.name ?: "Default Assistant", color = Ink, fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Glyph(Icons.Filled.Settings, 1, Modifier.size(52.dp)) { vm.go(Screen.Settings) }
-                    Text("Studio", color = Mute, fontSize = 11.sp)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Glyph(Icons.Filled.Star, 2, Modifier.size(52.dp)) { vm.go(Screen.Statistics) }
-                    Text("Pulse", color = Mute, fontSize = 11.sp)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Glyph(Icons.Filled.Build, 3, Modifier.size(52.dp)) { vm.go(Screen.ModelSettings) }
-                    Text("Models", color = Mute, fontSize = 11.sp)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Glyph(Icons.Filled.Home, 0, Modifier.size(52.dp)) { vm.go(Screen.Theme) }
-                    Text("Light", color = Mute, fontSize = 11.sp)
                 }
             }
         }

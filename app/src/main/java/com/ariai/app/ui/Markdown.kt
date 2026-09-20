@@ -1,10 +1,13 @@
 package com.ariai.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -30,20 +33,21 @@ fun MarkdownText(raw: String, light: Boolean) {
     Column(Modifier.fillMaxWidth()) {
         blocks.forEach { b ->
             if (b.code) {
-                SelectionContainer {
-                    Text(
-                        b.text,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        color = ink,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(chip)
-                            .padding(10.dp)
-                            .horizontalScroll(rememberScrollState())
-                    )
+                val ctx = LocalContext.current
+                Column(Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(10.dp)).background(chip)) {
+                    Text("Copy", color = link, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp).clickable {
+                        val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        cm.setPrimaryClip(android.content.ClipData.newPlainText("code", b.text))
+                    })
+                    SelectionContainer {
+                        Text(
+                            b.text,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            color = ink,
+                            modifier = Modifier.fillMaxWidth().padding(10.dp).horizontalScroll(rememberScrollState())
+                        )
+                    }
                 }
             } else {
                 b.text.lineSequence().forEach { line ->

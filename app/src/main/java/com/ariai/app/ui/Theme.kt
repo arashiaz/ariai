@@ -24,27 +24,27 @@ data class AriPalette(
 )
 
 private val LightPal = AriPalette(
-    page = Color(0xFFF5F3FC),
-    card = Color(0xF7FFFFFF),
-    ink = Color(0xFF1A1433),
-    mute = Color(0xFF7A7494),
-    accent = Color(0xFF6D5EF6),
-    accentSoft = Color(0xFFEDEBFF),
-    chip = Color(0xFFEEEAF8),
-    dangerBg = Color(0xFFFFE4EC),
+    page = Color(0xFFF7F6FB),
+    card = Color(0xFFFFFFFF),
+    ink = Color(0xFF161221),
+    mute = Color(0xFF6F6A80),
+    accent = Color(0xFF5B4FE8),
+    accentSoft = Color(0xFFEEEDFB),
+    chip = Color(0xFFF0EEF6),
+    dangerBg = Color(0xFFFFE8EA),
     dangerInk = Color(0xFFB42318),
-    link = Color(0xFF6D5EF6),
-    section = Color(0xFF6D5EF6)
+    link = Color(0xFF5B4FE8),
+    section = Color(0xFF5B4FE8)
 )
 
 private val DarkPal = AriPalette(
-    page = Color(0xFF0B0718),
-    card = Color(0xE618142C),
-    ink = Color(0xFFF2EEFF),
+    page = Color(0xFF0F0D16),
+    card = Color(0xFF1A1724),
+    ink = Color(0xFFF4F1FF),
     mute = Color(0xFFA39BB8),
-    accent = Color(0xFF8B7CFF),
-    accentSoft = Color(0xFF2A2150),
-    chip = Color(0xFF1C1633),
+    accent = Color(0xFF8B84F8),
+    accentSoft = Color(0xFF2A2640),
+    chip = Color(0xFF232033),
     dangerBg = Color(0xFF3B1520),
     dangerInk = Color(0xFFFF8FAB),
     link = Color(0xFFB4A8FF),

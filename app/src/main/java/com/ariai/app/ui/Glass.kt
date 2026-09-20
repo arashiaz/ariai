@@ -39,18 +39,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun AuroraBackdrop() {
-    val a = Accent.copy(alpha = 0.32f)
-    val b = Color(0xFFB4A8FF).copy(alpha = 0.22f)
-    Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().background(Page))
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(listOf(a.copy(alpha = 0.14f), Color.Transparent, b.copy(alpha = 0.12f)))
-            )
-        )
-        Box(Modifier.size(260.dp).clip(CircleShape).background(a).align(Alignment.TopEnd))
-        Box(Modifier.size(180.dp).clip(CircleShape).background(b).align(Alignment.BottomStart))
-    }
+    Box(Modifier.fillMaxSize().background(Page))
 }
 
 @Composable
@@ -63,8 +52,8 @@ fun Glass(
     Column(
         modifier
             .clip(shape)
-            .background(CardBg.copy(alpha = 0.72f))
-            .border(1.dp, Color.White.copy(alpha = 0.38f), shape)
+            .background(CardBg)
+            .border(1.dp, Chip, shape)
             .padding(14.dp)
     ) { content() }
 }

@@ -3,6 +3,7 @@ package com.ariai.app.net
 import com.ariai.app.data.ChatMessage
 import com.ariai.app.data.Provider
 import com.ariai.app.data.RequestLog
+import com.ariai.app.util.Errors
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -29,23 +30,10 @@ class LlmClient {
         active.getAndSet(null)?.cancel()
     }
 
-    fun friendly(e: Throwable): String {
-        val m = e.message.orEmpty()
-        return when {
-            m.contains("401") || m.contains("invalid_api_key", true) || m.contains("authentication", true) ->
-                "This API key was rejected. Open Keys and save a valid one."
-            m.contains("403") -> "Access denied for this key or model."
-            m.contains("429") -> "Too many requests. Wait, or switch model."
-            m.contains("404") -> "URL or model not found. Check the base URL and Fetch models."
-            m.contains("UnknownHost") || m.contains("Unable to resolve") -> "No internet, or the base URL is wrong."
-            m.contains("timeout", true) || m.contains("timed out", true) -> "Timed out. Tap stop and try again."
-            m.contains("Canceled") || m.contains("cancel", true) -> "Stopped."
-            else -> m.take(160).ifBlank { "Request failed" }
-        }
-    }
+    fun friendly(e: Throwable): String = Errors.friendly(e)
 
     fun log(method: String, url: String, status: Int, body: String) {
-        lastLogs = (listOf(RequestLog(System.currentTimeMillis(), method, url, status, body.take(2500))) + lastLogs).take(100)
+        lastLogs = (listOf(RequestLog(System.currentTimeMillis(), method, url, status, Errors.redact(body.take(2500)))) + lastLogs).take(100)
     }
 
     fun base(p: Provider): String = p.baseUrl.trim().trimEnd('/')
