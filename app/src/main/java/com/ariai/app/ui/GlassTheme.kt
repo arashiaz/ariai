@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -29,22 +30,21 @@ import androidx.compose.ui.unit.sp
 /**
  * AriAi glass visual system.
  *
- * Intentionally opt-in: existing screens keep their current appearance until the
- * product is ready to switch the shell over. This keeps the visual experiment
- * reversible while we harden the underlying UX.
+ * The visual language is deliberately restrained: near-white ice glass,
+ * charcoal typography/icons, hairline borders and soft elevation.
  */
 object AriGlass {
-    val Background = Color(0xFFF4F3FA)
-    val Surface = Color(0xCCFFFFFF)
-    val SurfaceStrong = Color(0xE6FFFFFF)
-    val Stroke = Color(0x33FFFFFF)
-    val StrokeDark = Color(0x18000000)
-    val Ink = Color(0xFF17151F)
-    val Muted = Color(0xFF706C7C)
-    val Accent = Color(0xFF6C5CE7)
-    val Accent2 = Color(0xFF8B7CF6)
-    val AccentSoft = Color(0x186C5CE7)
-    val Highlight = Color(0x99FFFFFF)
+    val Background = Color(0xFFFAFAFC)
+    val Surface = Color(0xD9FFFFFF)
+    val SurfaceStrong = Color(0xF2FFFFFF)
+    val Stroke = Color(0x66FFFFFF)
+    val StrokeDark = Color(0x14000000)
+    val Ink = Color(0xFF111111)
+    val Muted = Color(0xFF6B6B72)
+    val Accent = Color(0xFF171717)
+    val Accent2 = Color(0xFF3A3A40)
+    val AccentSoft = Color(0x10000000)
+    val Highlight = Color(0xBFFFFFFF)
 }
 
 @Composable
@@ -59,12 +59,17 @@ fun GlassSurface(
     val surface = if (emphasized) AriGlass.SurfaceStrong else AriGlass.Surface
 
     var m = modifier
+        .shadow(
+            elevation = if (emphasized) 10.dp else 6.dp,
+            shape = shape,
+            clip = false
+        )
         .clip(shape)
         .background(
             Brush.linearGradient(
                 listOf(
-                    surface,
-                    Color.White.copy(alpha = if (emphasized) .76f else .62f)
+                    Color.White.copy(alpha = if (emphasized) .96f else .88f),
+                    surface
                 )
             )
         )
