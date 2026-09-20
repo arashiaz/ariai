@@ -147,6 +147,10 @@ fun AriAiApp(vm: AriAiViewModel) {
                 Screen.Profile -> ProfilePage(vm)
                 Screen.Privacy -> SimplePage(vm, "Privacy", "API keys and chats stay on this device. Network calls go only to the base URL you set. AriAi has no account server.")
                 Screen.Chat -> ChatPage(vm)
+                Screen.Research -> ResearchPage(vm)
+                Screen.Agents -> AgentsPage(vm)
+                Screen.Projects -> ProjectsPage(vm)
+                Screen.Models -> ModelsHubPage(vm)
                 Screen.Settings -> SettingsPage(vm)
                 Screen.Preferences -> PrefsPage(vm)
                 Screen.General -> GeneralPage(vm)
@@ -194,22 +198,58 @@ fun AriAiApp(vm: AriAiViewModel) {
 
 @Composable
 private fun HomePage(vm: AriAiViewModel) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp)) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("AriAi", color = Ink, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                Text("One place for many models.", color = Mute, fontSize = 13.sp)
+                Text("AriAi", color = Ink, fontWeight = FontWeight.Bold, fontSize = 23.sp)
+                Text("Your personal AI workspace", color = Mute, fontSize = 13.sp)
             }
             IconBtn(Icons.Filled.Settings) { vm.go(Screen.Settings) }
         }
-        Spacer(Modifier.height(28.dp))
-        Text("How can I help you today?", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 26.sp)
-        Spacer(Modifier.height(16.dp))
-        Box(
-            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(16.dp)).background(Accent).clickable { vm.openNewChat() },
-            contentAlignment = Alignment.Center
-        ) { Text("Start a new chat", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) }
+
+        Spacer(Modifier.height(26.dp))
+
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                .background(Brush.linearGradient(listOf(Accent, Color(0xFF7466E8))))
+                .padding(22.dp)
+        ) {
+            Text("What are you working on?", color = Color.White.copy(alpha = .78f), fontSize = 13.sp)
+            Spacer(Modifier.height(5.dp))
+            Text("Ask, research, create, or build.", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 25.sp)
+            Spacer(Modifier.height(16.dp))
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Color.White.copy(alpha = .14f))
+                    .clickable { vm.openNewChat() }.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Text("Start a conversation", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                Text("→", color = Color.White, fontSize = 20.sp)
+            }
+        }
+
         Spacer(Modifier.height(20.dp))
+        Text("Work modes", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Spacer(Modifier.height(10.dp))
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            WorkspaceCard("Research", "Search + sources", Icons.Filled.Search, Modifier.weight(1f)) { vm.go(Screen.Research) }
+            WorkspaceCard("Create", "Write + files", Icons.Filled.Edit, Modifier.weight(1f)) { vm.go(Screen.Projects) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            WorkspaceCard("Agents", "Instructions + tools", Icons.Filled.Build, Modifier.weight(1f)) { vm.go(Screen.Agents) }
+            WorkspaceCard("Models", "Providers + models", Icons.Filled.Star, Modifier.weight(1f)) { vm.go(Screen.Models) }
+        }
+
+        Spacer(Modifier.height(22.dp))
+        Text("Quick start", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ActionTile("Explain", "Make ideas simple", Icons.Filled.Info, Modifier.weight(1f), 0) {
                 vm.startPrompt("Explain this in simple terms:\n")
@@ -221,24 +261,127 @@ private fun HomePage(vm: AriAiViewModel) {
                 vm.startPrompt("Help me write and debug this code:\n")
             }
         }
-        Spacer(Modifier.height(10.dp))
-        HomeRow("Providers", if (vm.configured) "Connected" else "Add an API key", Icons.Filled.Person) { vm.go(Screen.Providers) }
-        HomeRow("Tools", "Search, files, speech", Icons.Filled.Build) { vm.go(Screen.Tools) }
-        Spacer(Modifier.height(18.dp))
+
+        Spacer(Modifier.height(20.dp))
         Text("Recent chats", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Spacer(Modifier.height(8.dp))
         if (vm.conversations.isEmpty()) {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardBg).border(1.dp, Chip, RoundedCornerShape(16.dp)).padding(20.dp)) {
-                Text("No conversations yet", color = Ink, fontWeight = FontWeight.Medium)
-                Text("Start a chat to see it here.", color = Mute, fontSize = 13.sp)
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardBg)
+                    .border(1.dp, Chip, RoundedCornerShape(18.dp)).padding(20.dp)
+            ) {
+                Text("Your workspace is ready", color = Ink, fontWeight = FontWeight.Medium)
+                Text("Start a conversation and it will appear here.", color = Mute, fontSize = 13.sp)
             }
         } else {
-            vm.conversations.take(8).forEach { c ->
+            vm.conversations.take(6).forEach { c ->
                 HomeRow(c.title, c.preview.take(72), Icons.Filled.Email) { vm.openConv(c.id) }
             }
-            Text("See all", color = Link, modifier = Modifier.padding(8.dp).clickable { vm.go(Screen.ChatHistory) })
+            Text("See all conversations", color = Link, modifier = Modifier.padding(8.dp).clickable { vm.go(Screen.ChatHistory) })
         }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun WorkspaceCard(title: String, subtitle: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.clip(RoundedCornerShape(20.dp)).background(CardBg.copy(alpha = .96f))
+            .border(1.dp, Chip, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(15.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(AccentSoft),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = Accent, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(11.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(subtitle, color = Mute, fontSize = 11.sp)
+        }
+        Text("›", color = Mute, fontSize = 18.sp)
+    }
+}
+
+@Composable
+private fun ResearchPage(vm: AriAiViewModel) {
+    PageScaffold("Research", onBack = { vm.go(Screen.Home) }) {
+        Text("Turn a question into a sourced conversation.", color = Mute, fontSize = 13.sp)
+        Spacer(Modifier.height(18.dp))
+        HubCard("Web research", "Configure live search", Icons.Filled.Search, 0, Modifier.fillMaxWidth()) {
+            vm.go(Screen.SearchService)
+        }
+        Spacer(Modifier.height(10.dp))
+        HubCard("Research chat", "Ask with web context enabled", Icons.Filled.Info, 1, Modifier.fillMaxWidth()) {
+            vm.startPrompt("Research this topic using current web information. Separate verified facts from uncertainty and include source titles:\n")
+        }
+        Spacer(Modifier.height(18.dp))
+        Glass(Modifier.fillMaxWidth(), 20) {
+            Text("Research workflow", color = Ink, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            Text("Question → search → source context → answer", color = Mute, fontSize = 13.sp)
+            Spacer(Modifier.height(4.dp))
+            Text("AriAi keeps the research entry point separate from ordinary chat.", color = Mute, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun AgentsPage(vm: AriAiViewModel) {
+    PageScaffold("Agents", onBack = { vm.go(Screen.Home) }) {
+        Text("Configure assistants around instructions, models and tools.", color = Mute, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        HubCard("Assistants", "System instructions and personas", Icons.Filled.Person, 0, Modifier.fillMaxWidth()) {
+            vm.go(Screen.Assistant)
+        }
+        Spacer(Modifier.height(10.dp))
+        HubCard("MCP tools", "Connect external tool servers", Icons.Filled.Settings, 1, Modifier.fillMaxWidth()) {
+            vm.go(Screen.Mcp)
+        }
+        Spacer(Modifier.height(10.dp))
+        HubCard("Agent skills", "Reusable prompt workflows", Icons.Filled.Build, 2, Modifier.fillMaxWidth()) {
+            vm.go(Screen.Skills)
+        }
+    }
+}
+
+@Composable
+private fun ProjectsPage(vm: AriAiViewModel) {
+    PageScaffold("Projects", onBack = { vm.go(Screen.Home) }) {
+        Text("Keep files and work together instead of scattering them across chats.", color = Mute, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        HubCard("Workspace", "Local files and attachments", Icons.Filled.List, 0, Modifier.fillMaxWidth()) {
+            vm.go(Screen.Workspace)
+        }
+        Spacer(Modifier.height(10.dp))
+        HubCard("Chat history", "Continue previous work", Icons.Filled.Email, 1, Modifier.fillMaxWidth()) {
+            vm.go(Screen.ChatHistory)
+        }
+        Spacer(Modifier.height(10.dp))
+        HubCard("Prompts", "Reusable project instructions", Icons.Filled.Edit, 2, Modifier.fillMaxWidth()) {
+            vm.go(Screen.Prompts)
+        }
+    }
+}
+
+@Composable
+private fun ModelsHubPage(vm: AriAiViewModel) {
+    PageScaffold("Models", onBack = { vm.go(Screen.Home) }) {
+        Text("Choose the provider and model that power your workspace.", color = Mute, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        HubCard("Providers", "API keys, endpoints and model discovery", Icons.Filled.Person, 0, Modifier.fillMaxWidth()) {
+            vm.go(Screen.Providers)
+        }
+        Spacer(Modifier.height(10.dp))
+        HubCard("Model settings", "Chat, fast, translation and compression", Icons.Filled.Star, 1, Modifier.fillMaxWidth()) {
+            vm.go(Screen.ModelSettings)
+        }
+        Spacer(Modifier.height(10.dp))
+        HubCard("Connection logs", "Inspect recent network requests", Icons.Filled.List, 2, Modifier.fillMaxWidth()) {
+            vm.go(Screen.Logs)
+        }
     }
 }
 
