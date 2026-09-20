@@ -172,27 +172,10 @@ class LlmClient {
                 throw IllegalStateException("HTTP ${resp.code}: ${err.take(500)}")
             }
             val src = resp.body?.source() ?: return ""
-            val buf = StringBuilder()
-            while (!src.exhausted()) {
-                val line = src.readUtf8Line() ?: break
-                if (line.startsWith("data:")) {
-                    val data = line.removePrefix("data:").trim()
-                    if (data == "[DONE]") break
-                    try {
-                        val piece = parse(data)
-                        if (piece.isNotEmpty()) {
-                            out.append(piece)
-                            onDelta(piece)
-                        }
-                    } catch (_: Exception) { }
-                } else if (line.isNotBlank() && line.startsWith("{")) {
-                    buf.append(line)
-                }
-            }
-            if (out.isEmpty() && buf.isNotEmpty()) {
-                val t = parse(buf.toString())
-                out.append(t)
-                onDelta(t)
+            val lines = generateSequence { if (src.exhausted()) null else src.readUtf8Line() }
+            SseFrames.consume(lines, parse) { piece ->
+                out.append(piece)
+                onDelta(piece)
             }
             log("POST", url, resp.code, out.take(400).toString())
             }
