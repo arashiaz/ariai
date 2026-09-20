@@ -33,7 +33,7 @@ class LlmClient {
     fun friendly(e: Throwable): String = Errors.friendly(e)
 
     fun log(method: String, url: String, status: Int, body: String) {
-        lastLogs = (listOf(RequestLog(System.currentTimeMillis(), method, url, status, Errors.redact(body.take(2500)))) + lastLogs).take(100)
+        lastLogs = (listOf(RequestLog(System.currentTimeMillis(), method, Errors.redact(url), status, Errors.redact(body.take(2500)))) + lastLogs).take(100)
     }
 
     fun base(p: Provider): String = p.baseUrl.trim().trimEnd('/')
@@ -126,7 +126,7 @@ class LlmClient {
 
     private fun gemini(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
         val m = model.ifBlank { p.model }.removePrefix("models/")
-        val url = base(p).trimEnd('/') + "/models/$m:generateContent?key=${p.apiKey}"
+        val url = base(p).trimEnd('/') + "/models/$m:generateContent"
         val contents = JSONArray()
         if (!system.isNullOrBlank()) {
             contents.put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "System: $system"))))
@@ -215,7 +215,7 @@ class LlmClient {
                 b.header("x-api-key", p.apiKey)
                 b.header("anthropic-version", "2023-06-01")
             }
-            "gemini" -> { }
+            "gemini" -> b.header("x-goog-api-key", p.apiKey)
             else -> b.header("Authorization", "Bearer ${p.apiKey}")
         }
         b.header("Content-Type", "application/json")
