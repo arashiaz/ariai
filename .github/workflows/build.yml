@@ -41,7 +41,7 @@ jobs:
     - name: Build and test
       run: |
         set -o pipefail
-        ./gradlew testDebugUnitTest assembleDebug assembleRelease bundleRelease --stacktrace --no-daemon 2>&1 | tee gradle-out.txt
+        ./gradlew lintDebug testDebugUnitTest assembleDebug assembleRelease bundleRelease --stacktrace --no-daemon 2>&1 | tee gradle-out.txt
 
     - name: Annotate errors
       if: failure()
@@ -74,7 +74,7 @@ jobs:
 
     - name: Upload Android artifacts
       if: success()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: AriAi-build
         path: |
