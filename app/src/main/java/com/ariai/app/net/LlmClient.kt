@@ -58,17 +58,23 @@ class LlmClient {
     fun listModels(p: Provider): List<String> {
         val url = when (p.kind) {
             "gemini" -> base(p).trimEnd('/') + "/models"
-            "anthropic" -> return listOf("claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest", modelOrEmpty(p)).filter { it.isNotBlank() }.distinct()
+            "anthropic" -> if (base(p).endsWith("/v1")) base(p) + "/models" else base(p) + "/v1/models"
             else -> base(p) + "/models"
         }
         val b = Request.Builder().url(url).get()
         auth(b, p)
         val req = b.build()
-        http.newCall(req).execute().use { resp ->
+        val call = http.newCall(req)
+        active.set(call)
+        return try {
+            call.execute().use { resp ->
             val body = resp.body?.string().orEmpty()
             log("GET", url, resp.code, body)
             if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(400)}")
             return parseModelIds(p.kind, body)
+        }
+        } finally {
+            active.compareAndSet(call, null)
         }
     }
 
@@ -217,8 +223,6 @@ class LlmClient {
 
     private fun parseModelIds(kind: String, body: String): List<String> =
         LlmJson.parseModelIds(body)
-
-    private fun modelOrEmpty(p: Provider) = p.model
 
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
