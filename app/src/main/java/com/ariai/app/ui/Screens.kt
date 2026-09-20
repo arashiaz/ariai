@@ -212,19 +212,18 @@ private fun HomePage(vm: AriAiViewModel) {
 
         Spacer(Modifier.height(26.dp))
 
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                .background(Brush.linearGradient(listOf(Color(0xEEFFFFFF), Color(0xDCEBE8FF))))
-                .border(1.dp, Color.White.copy(alpha = .78f), RoundedCornerShape(28.dp))
-                .padding(22.dp)
+        GlassSurface(
+            Modifier.fillMaxWidth(),
+            radius = 28,
+            emphasized = true
         ) {
             Text("What are you working on?", color = Mute, fontSize = 13.sp)
             Spacer(Modifier.height(5.dp))
             Text("Ask, research, create, or build.", color = Ink, fontWeight = FontWeight.Bold, fontSize = 25.sp)
             Spacer(Modifier.height(16.dp))
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(AccentSoft)
-                    .border(1.dp, Color.White.copy(alpha = .65f), RoundedCornerShape(17.dp))
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(AriGlass.AccentSoft)
+                    .border(1.dp, AriGlass.StrokeDark, RoundedCornerShape(17.dp))
                     .clickable { vm.openNewChat() }.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -287,9 +286,11 @@ private fun HomePage(vm: AriAiViewModel) {
 
 @Composable
 private fun WorkspaceCard(title: String, subtitle: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
-    Row(
-        modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = .68f))
-            .border(1.dp, Color.White.copy(alpha = .78f), RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(15.dp),
+    GlassSurface(
+        modifier,
+        radius = 20,
+        onClick = onClick
+    ) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -390,8 +391,8 @@ private fun ModelsHubPage(vm: AriAiViewModel) {
 @Composable
 private fun ActionTile(title: String, hint: String, icon: ImageVector, modifier: Modifier, kind: Int, onClick: () -> Unit) {
     Column(
-        modifier.clip(RoundedCornerShape(22.dp)).background(Color.White.copy(alpha = 0.62f))
-            .border(1.dp, Color.White.copy(alpha = 0.78f), RoundedCornerShape(22.dp))
+        modifier.clip(RoundedCornerShape(22.dp)).background(AriGlass.Surface)
+            .border(1.dp, AriGlass.StrokeDark, RoundedCornerShape(22.dp))
             .clickable(onClick = onClick).padding(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -406,7 +407,7 @@ private fun ActionTile(title: String, hint: String, icon: ImageVector, modifier:
 private fun HomeRow(title: String, sub: String, icon: ImageVector, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.60f)).border(1.dp, Color.White.copy(alpha = .62f), RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(16.dp),
+            .background(AriGlass.Surface).border(1.dp, AriGlass.StrokeDark, RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(AccentSoft), contentAlignment = Alignment.Center) {
