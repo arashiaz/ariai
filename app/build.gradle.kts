@@ -18,10 +18,12 @@ android {
 
     buildTypes {
         release {
+            // Release artifacts must never be signed with the debug certificate.
+            // CI produces an unsigned release APK/AAB until a real release keystore is configured.
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
