@@ -57,7 +57,7 @@ class LlmClient {
 
     fun listModels(p: Provider): List<String> {
         val url = when (p.kind) {
-            "gemini" -> base(p).trimEnd('/') + "/models?key=${p.apiKey}"
+            "gemini" -> base(p).trimEnd('/') + "/models"
             "anthropic" -> return listOf("claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest", modelOrEmpty(p)).filter { it.isNotBlank() }.distinct()
             else -> base(p) + "/models"
         }
@@ -142,15 +142,19 @@ class LlmClient {
         auth(b, p)
         val call = http.newCall(b.build())
         active.set(call)
-        call.execute().use { resp ->
-            val body = resp.body?.string().orEmpty()
-            log("POST", url, resp.code, body)
-            if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(500)}")
-            val text = JSONObject(body).optJSONArray("candidates")
-                ?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
-                ?.optJSONObject(0)?.optString("text").orEmpty()
-            if (text.isNotEmpty()) onDelta(text)
-            return text.ifBlank { body.take(400) }
+        return try {
+            call.execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                log("POST", url, resp.code, body)
+                if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(500)}")
+                val text = JSONObject(body).optJSONArray("candidates")
+                    ?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
+                    ?.optJSONObject(0)?.optString("text").orEmpty()
+                if (text.isNotEmpty()) onDelta(text)
+                text.ifBlank { body.take(400) }
+            }
+        } finally {
+            active.compareAndSet(call, null)
         }
     }
 
@@ -160,7 +164,8 @@ class LlmClient {
         val call = http.newCall(b.build())
         active.set(call)
         val out = StringBuilder()
-        call.execute().use { resp ->
+        try {
+            call.execute().use { resp ->
             if (!resp.isSuccessful) {
                 val err = resp.body?.string().orEmpty()
                 log("POST", url, resp.code, err)
@@ -190,8 +195,10 @@ class LlmClient {
                 onDelta(t)
             }
             log("POST", url, resp.code, out.take(400).toString())
+            }
+        } finally {
+            active.compareAndSet(call, null)
         }
-        active.set(null)
         return out.toString()
     }
 
