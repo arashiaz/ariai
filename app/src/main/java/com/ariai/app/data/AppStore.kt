@@ -25,12 +25,12 @@ class AppStore(context: Context) {
     fun exportJson(): String {
         val o = JSONObject()
         p.all.forEach { (k, v) ->
-            if (k == "providers") {
+            if (k == "providers" || k == "mcp") {
                 val arr = JSONArray(v.toString())
                 for (i in 0 until arr.length()) {
-                    val provider = arr.getJSONObject(i)
-                    provider.put("apiKey", "")
-                    provider.put("headers", "")
+                    val item = arr.getJSONObject(i)
+                    if (k == "providers") item.put("apiKey", "")
+                    item.put("headers", "")
                 }
                 o.put(k, arr)
             } else {
@@ -173,12 +173,36 @@ class AppStore(context: Context) {
         JSONObject().put("id", x.id).put("name", x.name).put("prompt", x.prompt)
     }
 
-    fun mcp(): List<McpServer> = parseArr("mcp") { o ->
-        McpServer(o.getString("id"), o.getString("name"), o.optString("url"), o.optBoolean("enabled", true), o.optString("transport", "http"), o.optString("headers"))
+    fun mcp(): List<McpServer> {
+        val list = parseArr("mcp") { o ->
+            val id = o.getString("id")
+            val legacyHeaders = o.optString("headers")
+            val headers = secrets.get(mcpHeadersSecret(id)).ifBlank { legacyHeaders }
+            McpServer(id, o.getString("name"), o.optString("url"), o.optBoolean("enabled", true), o.optString("transport", "http"), headers)
+        }
+        // One-time migration for legacy MCP auth headers.
+        if (list.any { it.headers.isNotBlank() }) saveMcp(list)
+        return list
     }
 
-    fun saveMcp(list: List<McpServer>) = saveArr("mcp", list) { x ->
-        JSONObject().put("id", x.id).put("name", x.name).put("url", x.url).put("enabled", x.enabled).put("transport", x.transport).put("headers", x.headers)
+    fun saveMcp(list: List<McpServer>) {
+        val activeIds = list.map { it.id }.toSet()
+        list.forEach { x -> secrets.put(mcpHeadersSecret(x.id), x.headers) }
+
+        p.getString("mcp", "[]")?.let { raw ->
+            try {
+                val old = JSONArray(raw)
+                for (i in 0 until old.length()) {
+                    val id = old.getJSONObject(i).optString("id")
+                    if (id.isNotBlank() && id !in activeIds) secrets.remove(mcpHeadersSecret(id))
+                }
+            } catch (_: Exception) { }
+        }
+
+        saveArr("mcp", list) { x ->
+            JSONObject().put("id", x.id).put("name", x.name).put("url", x.url)
+                .put("enabled", x.enabled).put("transport", x.transport).put("headers", "")
+        }
     }
 
     fun prompts(): List<PromptItem> = parseArr("prompts") { o ->
@@ -247,4 +271,5 @@ class AppStore(context: Context) {
 
     private fun apiKeySecret(id: String) = "provider_api_key_$id"
     private fun headersSecret(id: String) = "provider_headers_$id"
+    private fun mcpHeadersSecret(id: String) = "mcp_headers_$id"
 }
