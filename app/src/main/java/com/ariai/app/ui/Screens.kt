@@ -214,22 +214,24 @@ private fun HomePage(vm: AriAiViewModel) {
 
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                .background(Brush.linearGradient(listOf(Accent, Color(0xFF7466E8))))
+                .background(Brush.linearGradient(listOf(Color(0xEEFFFFFF), Color(0xDCEBE8FF))))
+                .border(1.dp, Color.White.copy(alpha = .78f), RoundedCornerShape(28.dp))
                 .padding(22.dp)
         ) {
-            Text("What are you working on?", color = Color.White.copy(alpha = .78f), fontSize = 13.sp)
+            Text("What are you working on?", color = Mute, fontSize = 13.sp)
             Spacer(Modifier.height(5.dp))
-            Text("Ask, research, create, or build.", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 25.sp)
+            Text("Ask, research, create, or build.", color = Ink, fontWeight = FontWeight.Bold, fontSize = 25.sp)
             Spacer(Modifier.height(16.dp))
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Color.White.copy(alpha = .14f))
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(AccentSoft)
+                    .border(1.dp, Color.White.copy(alpha = .65f), RoundedCornerShape(17.dp))
                     .clickable { vm.openNewChat() }.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.Search, null, tint = Accent, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("Start a conversation", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                Text("→", color = Color.White, fontSize = 20.sp)
+                Text("Start a conversation", color = Ink, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                Text("→", color = Accent, fontSize = 20.sp)
             }
         }
 
@@ -286,8 +288,8 @@ private fun HomePage(vm: AriAiViewModel) {
 @Composable
 private fun WorkspaceCard(title: String, subtitle: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
     Row(
-        modifier.clip(RoundedCornerShape(20.dp)).background(CardBg.copy(alpha = .96f))
-            .border(1.dp, Chip, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(15.dp),
+        modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = .68f))
+            .border(1.dp, Color.White.copy(alpha = .78f), RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -318,7 +320,7 @@ private fun ResearchPage(vm: AriAiViewModel) {
             vm.startPrompt("Research this topic using current web information. Separate verified facts from uncertainty and include source titles:\n")
         }
         Spacer(Modifier.height(18.dp))
-        Glass(Modifier.fillMaxWidth(), 20) {
+        GlassSurface(Modifier.fillMaxWidth(), 20, emphasized = true) {
             Text("Research workflow", color = Ink, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Text("Question → search → source context → answer", color = Mute, fontSize = 13.sp)
@@ -388,8 +390,8 @@ private fun ModelsHubPage(vm: AriAiViewModel) {
 @Composable
 private fun ActionTile(title: String, hint: String, icon: ImageVector, modifier: Modifier, kind: Int, onClick: () -> Unit) {
     Column(
-        modifier.clip(RoundedCornerShape(22.dp)).background(CardBg.copy(alpha = 0.9f))
-            .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
+        modifier.clip(RoundedCornerShape(22.dp)).background(Color.White.copy(alpha = 0.62f))
+            .border(1.dp, Color.White.copy(alpha = 0.78f), RoundedCornerShape(22.dp))
             .clickable(onClick = onClick).padding(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -404,7 +406,7 @@ private fun ActionTile(title: String, hint: String, icon: ImageVector, modifier:
 private fun HomeRow(title: String, sub: String, icon: ImageVector, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(18.dp))
-            .background(CardBg.copy(alpha = 0.9f)).clickable(onClick = onClick).padding(16.dp),
+            .background(Color.White.copy(alpha = 0.60f)).border(1.dp, Color.White.copy(alpha = .62f), RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(AccentSoft), contentAlignment = Alignment.Center) {
@@ -509,7 +511,7 @@ private fun ChatPage(vm: AriAiViewModel) {
             val msgs = vm.current?.messages.orEmpty()
             if (msgs.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Glass(Modifier.padding(28.dp), 28) {
+                    GlassSurface(Modifier.padding(28.dp), 28, emphasized = true) {
                         Text("A quiet glass room", color = Accent, fontWeight = FontWeight.SemiBold)
                         Text("Write below. Replies stream in softly.", color = Mute, fontSize = 14.sp)
                     }
@@ -546,7 +548,7 @@ private fun ChatPage(vm: AriAiViewModel) {
 
 @Composable
 private fun Composer(vm: AriAiViewModel) {
-    Glass(Modifier.padding(12.dp), 28) {
+    GlassSurface(Modifier.padding(12.dp), 28, emphasized = true) {
         BasicTextField(
             value = vm.input,
             onValueChange = { v ->
@@ -1217,7 +1219,7 @@ private fun LogsPage(vm: AriAiViewModel) {
         if (vm.logs.isEmpty()) Text("No requests yet. Send a chat or fetch models.", color = Mute)
         vm.logs.forEach { l ->
             val ok = l.status in 200..299
-            Glass(Modifier.fillMaxWidth().padding(vertical = 4.dp), 16) {
+            GlassSurface(Modifier.fillMaxWidth().padding(vertical = 4.dp), 16, emphasized = true) {
                 Text("${l.method}  ${if (ok) "OK" else "Fail"}  ${l.status}", color = if (ok) Accent else DangerInk, fontWeight = FontWeight.SemiBold)
                 Text(l.url.take(80), color = Mute, fontSize = 12.sp)
                 Text(l.body.take(160), color = Ink, fontSize = 12.sp)
