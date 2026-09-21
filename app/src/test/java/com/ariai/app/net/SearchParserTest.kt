@@ -41,6 +41,18 @@ class SearchParserTest {
         assertEquals("One", results.first().title)
     }
 
+    @Test fun keepsSnippetsAttachedToTheirOwnResult() {
+        val html = """
+            <div class="result"><a class="result__a" href="https://example.com/one">First</a></div>
+            <div class="result"><a class="result__a" href="https://example.com/two">Second</a>
+            <div class="result__snippet">Second only</div></div>
+        """.trimIndent()
+
+        val results = SearchParser.parseResults(html)
+        assertEquals(null, results[0].snippet)
+        assertEquals("Second only", results[1].snippet)
+    }
+
     @Test fun omitsMissingSnippetWithoutDanglingColon() {
         val html = """<a class="result__a" href="https://example.com">Only title</a>"""
         assertEquals("- Only title", SearchParser.parse(html))

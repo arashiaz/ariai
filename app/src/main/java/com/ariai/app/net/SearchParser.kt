@@ -18,22 +18,23 @@ internal object SearchParser {
     fun parseResults(body: String, limit: Int = 5): List<SearchResult> {
         if (body.isBlank() || limit <= 0) return emptyList()
 
-        val snippets = snippetPattern.findAll(body)
-            .map { clean(it.groupValues[1]) }
-            .toList()
+        val matches = resultPattern.findAll(body).take(limit).toList()
 
-        return resultPattern.findAll(body)
-            .mapIndexed { index, match ->
-                SearchResult(
-                    title = clean(match.groupValues[2]),
-                    url = decodeUrl(match.groupValues[1]),
-                    snippet = snippets.getOrNull(index)?.takeIf { it.isNotBlank() }
-                )
-            }
+        return matches.mapIndexed { index, match ->
+            val nextStart = matches.getOrNull(index + 1)?.range?.first ?: body.length
+            val block = body.substring(match.range.first, nextStart)
+            val snippet = snippetPattern.find(block)?.groupValues?.getOrNull(1)?.let(::clean)
+
+            SearchResult(
+                title = clean(match.groupValues[2]),
+                url = decodeUrl(match.groupValues[1]),
+                snippet = snippet?.takeIf { it.isNotBlank() }
+            )
+        }
             .filter { it.title.isNotBlank() && it.url.isNotBlank() }
             .distinctBy { it.url }
-            .take(limit)
             .toList()
+
     }
 
     fun parse(body: String, limit: Int = 5): String =
