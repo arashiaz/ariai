@@ -316,7 +316,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun buildSystem(): String = buildString {
         when (composerMode) {
-            "Research" -> append("You are in Research mode. Prefer current web context when available, separate verified facts from uncertainty, and clearly identify sources.\\n")
+            "Research" -> append("You are in Research mode. Use the supplied live web sources as evidence. Cite factual claims with [n] matching the supplied source numbers, never invent or renumber sources, and do not cite anything that is not in the supplied source list. Separate verified facts from uncertainty. End with a concise Sources section listing the cited [n] sources as Markdown links using their supplied URLs.\\n")
             "Create" -> append("You are in Create mode. Produce polished, usable output and keep the response focused on the requested deliverable.\\n")
             "Code" -> append("You are in Code mode. Prefer correct, maintainable code, explain important implementation choices briefly, and consider edge cases.\\n")
             "Analyze" -> append("You are in Analyze mode. Break the problem into evidence, assumptions, and conclusions without overstating certainty.\\n")
