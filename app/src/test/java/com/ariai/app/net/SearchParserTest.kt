@@ -24,6 +24,16 @@ class SearchParserTest {
         assertEquals("- Only title", SearchParser.parse(html))
     }
 
+    @Test fun doesNotShiftSnippetsWhenOneResultHasNoSnippet() {
+        val html = """
+            <a class="result__a">First</a>
+            <a class="result__a">Second</a>
+            <div class="result__snippet">Second snippet</div>
+        """.trimIndent()
+
+        assertEquals("- First\n- Second: Second snippet", SearchParser.parse(html))
+    }
+
     @Test fun respectsLimitAndEmptyInput() {
         val html = """
             <a class="result__a">One</a>
