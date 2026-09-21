@@ -44,7 +44,7 @@ internal object SearchParser {
     fun extractText(body: String, maxChars: Int = 12000): String {
         if (body.isBlank() || maxChars <= 0) return ""
         val withoutNoise = body
-            .replace(Regex("(?is)<(script|style|noscript|svg|nav|footer|header)[^>]*>.*?</\\1>"), " ")
+            .replace(Regex("(?is)<(?:script|style|noscript|svg|nav|footer|header)[^>]*>.*?</(?:script|style|noscript|svg|nav|footer|header)>"), " ")
             .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\\n")
             .replace(Regex("</(p|div|li|h[1-6]|article|section)>", RegexOption.IGNORE_CASE), "\\n")
         return clean(withoutNoise)
