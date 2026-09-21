@@ -553,6 +553,14 @@ private fun ChatPage(vm: AriAiViewModel) {
 @Composable
 private fun Composer(vm: AriAiViewModel) {
     GlassSurface(Modifier.padding(12.dp), 28, emphasized = true) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf("Chat", "Research", "Create", "Code", "Analyze", "Agent").forEach { mode ->
+                Pill(mode, vm.composerMode == mode) { vm.composerMode = mode }
+            }
+        }
         BasicTextField(
             value = vm.input,
             onValueChange = { v ->
