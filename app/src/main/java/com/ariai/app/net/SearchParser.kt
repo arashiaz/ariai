@@ -8,14 +8,14 @@ internal object SearchParser {
     )
     private val snippetPattern = Regex(
         """class="result__snippet"[^>]*>(.*?)</(?:a|td|div)>""",
-        RegexOption.IGNORE_CASE or RegexOption.DOT_MATCHES_ALL
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
     private val tagPattern = Regex("<[^>]+>")
 
     fun parse(body: String, limit: Int = 5): String {
         if (body.isBlank() || limit <= 0) return ""
         val titles = titlePattern.findAll(body)
-            .map { clean(it.groupValues[1]) }
+            .map { match -> clean(match.groupValues[1]) }
             .filter(String::isNotBlank)
             .take(limit)
             .toList()
