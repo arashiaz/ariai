@@ -41,8 +41,11 @@ class SearchParserTest {
             <a class="result__a" href="https://example.com/3">Three</a>
         """.trimIndent()
 
-        assertEquals("- One
-- Two", SearchParser.parse(html, limit = 2))
+        assertEquals(
+            """- One
+- Two""",
+            SearchParser.parse(html, limit = 2)
+        )
         assertTrue(SearchParser.parseResults("", 5).isEmpty())
         assertEquals("", SearchParser.parse(html, limit = 0))
     }
