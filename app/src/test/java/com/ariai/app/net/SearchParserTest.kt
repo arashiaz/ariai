@@ -53,6 +53,35 @@ class SearchParserTest {
         assertEquals("Second only", results[1].snippet)
     }
 
+    @Test fun extractsReadablePageTextAndRemovesNoise() {
+        val html = """
+            <html>
+              <header>Navigation</header>
+              <article>
+                <h1>Research title</h1>
+                <p>First paragraph with <b>useful</b> text.</p>
+                <script>ignoreMe()</script>
+                <div>Second paragraph.</div>
+              </article>
+              <footer>Footer links</footer>
+            </html>
+        """.trimIndent()
+
+        val text = SearchParser.extractText(html)
+
+        assertEquals(
+            "Research title First paragraph with useful text. Second paragraph.",
+            text
+        )
+        assertTrue(!text.contains("ignoreMe"))
+        assertTrue(!text.contains("Footer links"))
+    }
+
+    @Test fun boundsExtractedPageText() {
+        val text = SearchParser.extractText("<p>abcdefghij</p>", maxChars = 5)
+        assertEquals("abcde", text)
+    }
+
     @Test fun omitsMissingSnippetWithoutDanglingColon() {
         val html = """<a class="result__a" href="https://example.com">Only title</a>"""
         assertEquals("- Only title", SearchParser.parse(html))
