@@ -13,7 +13,8 @@ class SearchParserTest {
         """.trimIndent()
 
         assertEquals(
-            "- First & Result: A useful summary.\n- Second: Another "summary".",
+            """- First & Result: A useful summary.
+- Second: Another "summary".""",
             SearchParser.parse(html)
         )
     }
