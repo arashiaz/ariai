@@ -29,6 +29,18 @@ class SearchParserTest {
         assertTrue(result.snippet == null)
     }
 
+    @Test fun acceptsSingleQuotedAttributesAndDeduplicatesUrls() {
+        val html = """
+            <a class='result__a' href='https://example.com'>One</a>
+            <a class='result__a' href='https://example.com'>Duplicate</a>
+            <a class='result__a' href='https://example.org'>Two</a>
+        """.trimIndent()
+
+        val results = SearchParser.parseResults(html, limit = 5)
+        assertEquals(2, results.size)
+        assertEquals("One", results.first().title)
+    }
+
     @Test fun omitsMissingSnippetWithoutDanglingColon() {
         val html = """<a class="result__a" href="https://example.com">Only title</a>"""
         assertEquals("- Only title", SearchParser.parse(html))

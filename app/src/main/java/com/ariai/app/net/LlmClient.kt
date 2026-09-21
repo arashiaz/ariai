@@ -78,9 +78,9 @@ class LlmClient {
         }
     }
 
-    fun searchDuck(q: String): String {
+    fun searchDuckResults(q: String, limit: Int = 5): List<SearchParser.SearchResult> {
         val query = q.trim()
-        if (query.isBlank()) return ""
+        if (query.isBlank() || limit <= 0) return emptyList()
         val url = "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(query, "UTF-8")
         val req = Request.Builder().url(url).header("User-Agent", "AriAi/1.0").get().build()
         val call = http.newCall(req)
@@ -89,13 +89,18 @@ class LlmClient {
             call.execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
                 log("GET", url, resp.code, body.take(400))
-                if (!resp.isSuccessful) return ""
-                SearchParser.parse(body)
+                if (!resp.isSuccessful) return emptyList()
+                SearchParser.parseResults(body, limit)
             }
         } finally {
             active.compareAndSet(call, null)
         }
     }
+
+    fun searchDuck(q: String): String =
+        searchDuckResults(q).joinToString("\n") {
+            if (it.snippet.isNullOrBlank()) "- ${it.title}" else "- ${it.title}: ${it.snippet}"
+        }
 
     private fun openai(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
         val url = base(p) + "/chat/completions"

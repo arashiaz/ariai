@@ -5,14 +5,15 @@ internal object SearchParser {
     data class SearchResult(val title: String, val url: String, val snippet: String?)
 
     private val resultPattern = Regex(
-        """class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>""",
+        """class=["'][^"']*result__a[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
     private val snippetPattern = Regex(
-        """class="result__snippet"[^>]*>(.*?)</(?:td|div|span)>""",
+        """class=["'][^"']*result__snippet[^"']*["'][^>]*>(.*?)</(?:td|div|span)>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
     private val tagPattern = Regex("<[^>]+>")
+    private val whitespacePattern = Regex("\\s+")
 
     fun parseResults(body: String, limit: Int = 5): List<SearchResult> {
         if (body.isBlank() || limit <= 0) return emptyList()
@@ -22,7 +23,6 @@ internal object SearchParser {
             .toList()
 
         return resultPattern.findAll(body)
-            .take(limit)
             .mapIndexed { index, match ->
                 SearchResult(
                     title = clean(match.groupValues[2]),
@@ -30,7 +30,9 @@ internal object SearchParser {
                     snippet = snippets.getOrNull(index)?.takeIf { it.isNotBlank() }
                 )
             }
-            .filter { it.title.isNotBlank() }
+            .filter { it.title.isNotBlank() && it.url.isNotBlank() }
+            .distinctBy { it.url }
+            .take(limit)
             .toList()
     }
 
@@ -55,6 +57,6 @@ internal object SearchParser {
             .replace("&#39;", "'", ignoreCase = true)
             .replace("&lt;", "<", ignoreCase = true)
             .replace("&gt;", ">", ignoreCase = true)
-            .replace(Regex("\\s+"), " ")
+            .replace(whitespacePattern, " ")
             .trim()
 }
