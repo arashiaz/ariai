@@ -242,10 +242,14 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
                         val label = if (researchMode) "Research sources" else "Web search"
                         val web = results.mapIndexed { index, result ->
                             val snippet = result.snippet?.takeIf { it.isNotBlank() }?.let { " — $it" }.orEmpty()
-                            "[${index + 1}] ${result.title} — ${result.url}$snippet"
-                        }.joinToString("\n")
+                            val page = if (researchMode) {
+                                withContext(Dispatchers.IO) { llm.fetchWebPage(result.url, maxChars = 10000) }
+                            } else ""
+                            val content = page.takeIf { it.isNotBlank() }?.let { "\nSource content:\n$it" }.orEmpty()
+                            "[${index + 1}] ${result.title} — ${result.url}$snippet$content"
+                        }.joinToString("\n\n")
                         msgs = msgs.dropLast(1) + msgs.last().copy(text = "${msgs.last().text}\n\n$label:\n$web")
-                    } else if (researchMode) {
+                                        } else if (researchMode) {
                         msgs = msgs.dropLast(1) + msgs.last().copy(
                             text = "${msgs.last().text}\n\nResearch note: live web search returned no usable results. Do not invent sources."
                         )
