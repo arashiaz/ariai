@@ -70,7 +70,7 @@ class LlmClient {
             call.execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
                 log("GET", url, resp.code, body)
-                if (!resp.isSuccessful) throw IllegalStateException("HTTP §{resp.code}: §{body.take(400)}")
+                if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(400)}")
                 return LlmJson.parseModelIds(body)
             }
         } finally {
@@ -99,7 +99,7 @@ class LlmClient {
 
     fun searchDuck(q: String): String =
         searchDuckResults(q).joinToString("\n") {
-            if (it.snippet.isNullOrBlank()) "- §{it.title}" else "- §{it.title}: §{it.snippet}"
+            if (it.snippet.isNullOrBlank()) "- ${it.title}" else "- ${it.title}: ${it.snippet}"
         }
 
     private fun openai(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
@@ -141,10 +141,10 @@ class LlmClient {
 
     private fun gemini(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
         val m = model.ifBlank { p.model }.removePrefix("models/")
-        val url = base(p).trimEnd('/') + "/models/§{m}:streamGenerateContent?alt=sse"
+        val url = base(p).trimEnd('/') + "/models/${m}:streamGenerateContent?alt=sse"
         val contents = JSONArray()
         if (!system.isNullOrBlank()) {
-            contents.put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "System: §{system}"))))
+            contents.put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "System: ${system}"))))
         }
         messages.forEach { msg ->
             val role = if (msg.role == ChatMessage.Role.Assistant) "model" else "user"
@@ -176,7 +176,7 @@ class LlmClient {
                 if (!resp.isSuccessful) {
                     val err = resp.body?.string().orEmpty()
                     log("POST", url, resp.code, err)
-                    throw IllegalStateException("HTTP §{resp.code}: §{err.take(500)}")
+                    throw IllegalStateException("HTTP ${resp.code}: ${err.take(500)}")
                 }
                 val src = resp.body?.source() ?: return ""
                 val lines = generateSequence { if (src.exhausted()) null else src.readUtf8Line() }
@@ -201,7 +201,7 @@ class LlmClient {
         val content: Any = if (!m.imageBase64.isNullOrBlank()) {
             JSONArray()
                 .put(JSONObject().put("type", "text").put("text", m.text))
-                .put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:image/jpeg;base64,§{m.imageBase64}")))
+                .put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:image/jpeg;base64,${m.imageBase64}")))
         } else m.text
         return JSONObject().put("role", role).put("content", content)
     }
@@ -213,7 +213,7 @@ class LlmClient {
                 b.header("anthropic-version", "2023-06-01")
             }
             "gemini" -> b.header("x-goog-api-key", p.apiKey)
-            else -> b.header("Authorization", "Bearer §{p.apiKey}")
+            else -> b.header("Authorization", "Bearer ${p.apiKey}")
         }
         b.header("Content-Type", "application/json")
         p.headers.lines().forEach { line ->
