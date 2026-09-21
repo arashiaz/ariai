@@ -136,7 +136,7 @@ class LlmClient {
 
     private fun gemini(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
         val m = model.ifBlank { p.model }.removePrefix("models/")
-        val url = base(p).trimEnd('/') + "/models/$m:generateContent"
+        val url = base(p).trimEnd('/') + "/models/$m:streamGenerateContent?alt=sse"
         val contents = JSONArray()
         if (!system.isNullOrBlank()) {
             contents.put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "System: $system"))))
@@ -148,23 +148,15 @@ class LlmClient {
         val payload = JSONObject().put("contents", contents)
             .put("generationConfig", JSONObject().put("temperature", p.temperature.toDouble()).put("maxOutputTokens", p.maxTokens))
             .toString()
-        val b = Request.Builder().url(url).post(payload.toRequestBody(JSON))
-        auth(b, p)
-        val call = http.newCall(b.build())
-        active.set(call)
-        return try {
-            call.execute().use { resp ->
-                val body = resp.body?.string().orEmpty()
-                log("POST", url, resp.code, body)
-                if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(500)}")
-                val text = JSONObject(body).optJSONArray("candidates")
-                    ?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
-                    ?.optJSONObject(0)?.optString("text").orEmpty()
-                if (text.isNotEmpty()) onDelta(text)
-                text.ifBlank { body.take(400) }
-            }
-        } finally {
-            active.compareAndSet(call, null)
+
+        return sse(url, p, payload, onDelta) { line ->
+            JSONObject(line).optJSONArray("candidates")
+                ?.optJSONObject(0)
+                ?.optJSONObject("content")
+                ?.optJSONArray("parts")
+                ?.optJSONObject(0)
+                ?.optString("text")
+                .orEmpty()
         }
     }
 
