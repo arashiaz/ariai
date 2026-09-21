@@ -929,6 +929,8 @@ private fun ModelPick(title: String, hint: String, id: String, vm: AriAiViewMode
 
 @Composable
 private fun ProvidersPage(vm: AriAiViewModel) {
+    var expandedProvider by remember { mutableStateOf<String?>(null) }
+    var providerQuery by remember { mutableStateOf("") }
     var addOpen by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("https://api.openai.com/v1") }
@@ -936,62 +938,132 @@ private fun ProvidersPage(vm: AriAiViewModel) {
     var key by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf("openai") }
 
-    PageScaffold("AI Providers", onBack = { vm.go(Screen.Home) }) {
-        Text("Choose a provider. Model selection stays in the chat controls.", color = Mute, fontSize = 13.sp)
+    PageScaffold("Providers", onBack = { vm.go(Screen.Home) }, extra = {
+        IconBtn(Icons.Filled.Add) { addOpen = true }
+    }) {
+        SearchBar("Search providers", providerQuery) { providerQuery = it }
+
         Spacer(Modifier.height(12.dp))
 
-        vm.providers.forEach { p ->
-            Row(
-                Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardBg)
-                    .border(1.dp, Chip, RoundedCornerShape(18.dp))
-                    .clickable { vm.selectProvider(p.id) }
-                    .padding(horizontal = 16.dp, vertical = 15.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    Modifier.size(42.dp).clip(CircleShape).background(
-                        when (p.kind) {
-                            "anthropic" -> Color(0xFFD4A574)
-                            "gemini" -> Color(0xFF4285F4)
-                            "deepseek" -> Color(0xFF4C6FFF)
-                            "groq" -> Color(0xFFF55036)
-                            else -> Accent
-                        }
-                    ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(p.name.take(1), color = Color.White, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(p.name, color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    Text(if (p.enabled) "Enabled" else "Disabled", color = Mute, fontSize = 12.sp)
-                }
-                if (vm.selectedProvider == p.id) {
-                    Icon(Icons.Filled.Check, null, tint = Accent, modifier = Modifier.size(21.dp))
-                } else {
-                    Text("›", color = Mute, fontSize = 22.sp)
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-        }
+        vm.providers
+            .filter { it.name.contains(providerQuery, ignoreCase = true) }
+            .forEach { p ->
+                val expanded = expandedProvider == p.id
+                var providerKey by remember(p.id) { mutableStateOf(p.apiKey) }
 
-        Spacer(Modifier.height(8.dp))
-        Row(
-            Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(CardBg)
-                .border(1.dp, Chip, RoundedCornerShape(18.dp))
-                .clickable { addOpen = !addOpen }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.Add, null, tint = Accent)
-            Spacer(Modifier.width(10.dp))
-            Text("Add provider", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            Text(if (addOpen) "⌃" else "⌄", color = Mute, fontSize = 20.sp)
+                Column(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(CardBg)
+                        .border(1.dp, if (expanded) Accent else Chip, RoundedCornerShape(20.dp))
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clickable { expandedProvider = if (expanded) null else p.id }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier.size(46.dp).clip(CircleShape).background(
+                                when (p.kind) {
+                                    "anthropic" -> Color(0xFFD4A574)
+                                    "gemini" -> Color(0xFF4285F4)
+                                    "deepseek" -> Color(0xFF4C6FFF)
+                                    "groq" -> Color(0xFFF55036)
+                                    else -> AccentSoft
+                                }
+                            ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                p.name.take(1).uppercase(),
+                                color = if (p.kind == "openai" || p.kind == "anthropic" || p.kind == "gemini" || p.kind == "deepseek" || p.kind == "groq") Color.White else Ink,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(p.name, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 17.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    if (p.models.isNotEmpty()) "models" else "models not loaded",
+                                    color = Link,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                                        .background(AccentSoft)
+                                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                                )
+                                Spacer(Modifier.width(7.dp))
+                                Text(
+                                    if (p.enabled && p.apiKey.isNotBlank()) "Enabled" else "Disabled",
+                                    color = if (p.enabled && p.apiKey.isNotBlank()) Color(0xFF2E7D32) else Color(0xFF9A5A00),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                                        .background(if (p.enabled && p.apiKey.isNotBlank()) Color(0xFFC8F3CF) else Color(0xFFFFE2B8))
+                                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        Text(if (expanded) "⌃" else "›", color = Mute, fontSize = 22.sp)
+                    }
+
+                    if (expanded) {
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                        ) {
+                            Text("Models", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Spacer(Modifier.height(6.dp))
+
+                            if (p.models.isEmpty()) {
+                                Text("No models loaded yet.", color = Mute, fontSize = 12.sp)
+                            } else {
+                                p.models.forEach { m ->
+                                    Row(
+                                        Modifier.fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (m == p.model) AccentSoft else Color.Transparent)
+                                            .clickable { vm.selectProvider(p.id); vm.selectModel(m) }
+                                            .padding(horizontal = 10.dp, vertical = 9.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (m == p.model) {
+                                            Icon(Icons.Filled.Check, null, tint = Accent, modifier = Modifier.size(17.dp))
+                                            Spacer(Modifier.width(7.dp))
+                                        }
+                                        Text(m, color = if (m == p.model) Accent else Ink, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                Text("Use", color = Link, modifier = Modifier.clickable { vm.selectProvider(p.id) }.padding(8.dp))
+                                Text("Fetch", color = Link, modifier = Modifier.clickable { vm.fetchModels(p.id) }.padding(8.dp))
+                                Text("Test", color = Link, modifier = Modifier.clickable { vm.testProvider(p.id) }.padding(8.dp))
+                            }
+
+                            Text("API key", color = Mute, fontSize = 12.sp)
+                            Field("API key", providerKey) { providerKey = it }
+                            if (providerKey != p.apiKey) {
+                                Text(
+                                    "Save key",
+                                    color = Link,
+                                    modifier = Modifier.clickable {
+                                        vm.updateProvider(p.copy(apiKey = providerKey, enabled = providerKey.isNotBlank()))
+                                        vm.snack = "Key saved"
+                                    }.padding(8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+        if (vm.providers.none { it.name.contains(providerQuery, ignoreCase = true) }) {
+            Text("No providers found.", color = Mute, modifier = Modifier.padding(16.dp))
         }
 
         if (addOpen) {
@@ -999,6 +1071,10 @@ private fun ProvidersPage(vm: AriAiViewModel) {
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardBg).padding(14.dp)
             ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Add provider", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text("Close", color = Link, modifier = Modifier.clickable { addOpen = false }.padding(8.dp))
+                }
                 Field("Name", name) { name = it }
                 Field("Base URL", url) { url = it }
                 Field("Model id (optional)", model) { model = it }
