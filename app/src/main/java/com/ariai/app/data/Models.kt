@@ -77,7 +77,7 @@ data class PromptItem(val id: String, val title: String, val body: String)
 data class QuickMsg(val id: String, val text: String)
 
 enum class Screen {
-    Chat, Research, Agents, Projects, Models, Settings, Preferences, General, Notifications, Theme,
+    Chat, Research, Agents, Projects, Models, ModelCatalog, Settings, Preferences, General, Notifications, Theme,
     Assistant, Extensions, ModelSettings, Providers, Speech, Mcp,
     Statistics, SearchService, WebServer, Backup, About, Docs, Logs,
     ChatHistory, SearchChats, QuickMessages, Prompts, Skills, Workspace,
