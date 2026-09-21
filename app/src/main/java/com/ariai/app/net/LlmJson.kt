@@ -5,12 +5,19 @@ import org.json.JSONObject
 /** Pure JSON parsing helpers shared by the network client and unit tests. */
 internal object LlmJson {
     fun parseModelIds(body: String): List<String> {
-        val json = JSONObject(body)
-        val data = json.optJSONArray("data") ?: json.optJSONArray("models") ?: return emptyList()
-        return (0 until data.length()).map { i ->
-            val o = data.getJSONObject(i)
-            o.optString("id").ifBlank { o.optString("name") }
-                .removePrefix("models/")
-        }.filter { it.isNotBlank() }.distinct().sorted()
+        if (body.isBlank()) return emptyList()
+
+        return runCatching {
+            val json = JSONObject(body)
+            val data = json.optJSONArray("data") ?: json.optJSONArray("models") ?: return@runCatching emptyList()
+            (0 until data.length()).mapNotNull { i ->
+                val item = data.opt(i)
+                val model = item as? JSONObject ?: return@mapNotNull null
+                model.optString("id")
+                    .ifBlank { model.optString("name") }
+                    .removePrefix("models/")
+                    .takeIf { it.isNotBlank() }
+            }.distinct().sorted()
+        }.getOrDefault(emptyList())
     }
 }
