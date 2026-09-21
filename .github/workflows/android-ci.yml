@@ -15,10 +15,18 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Inspect project
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "PWD=$PWD"
+          find . -maxdepth 5 -type f | sort | head -300
+          echo "Gradle files:"
+          find . -type f \( -name 'gradlew' -o -name 'settings.gradle' -o -name 'settings.gradle.kts' -o -name 'build.gradle' -o -name 'build.gradle.kts' \) -print
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -28,48 +36,48 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK packages
-        run: |
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "9.6"
+          packages: 'platform-tools platforms;android-33 build-tools;34.0.4'
 
-      - name: Locate Android project
+      - name: Prepare Gradle
         shell: bash
         run: |
-          echo "Workspace:"
-          pwd
-          find . -maxdepth 4 -type f \( -name 'settings.gradle' -o -name 'settings.gradle.kts' -o -name 'build.gradle' -o -name 'build.gradle.kts' \) -print
-          echo "Gradle:"
-          gradle --version
+          set -euxo pipefail
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            echo "GRADLE_CMD=./gradlew" >> "$GITHUB_ENV"
+          else
+            echo "No Gradle wrapper found; installing Gradle 9.6."
+            sudo apt-get update
+            sudo apt-get install -y gradle
+            echo "GRADLE_CMD=gradle" >> "$GITHUB_ENV"
+          fi
 
-      - name: Lint
-        run: gradle lintDebug --stacktrace
+      - name: Gradle version
+        run: $GRADLE_CMD --version
+
+      - name: Build debug
+        run: $GRADLE_CMD assembleDebug --stacktrace --no-daemon
 
       - name: Unit tests
-        run: gradle testDebugUnitTest --stacktrace
+        run: $GRADLE_CMD testDebugUnitTest --stacktrace --no-daemon
 
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+      - name: Lint
+        run: $GRADLE_CMD lintDebug --stacktrace --no-daemon
 
       - name: Build release APK
-        run: gradle assembleRelease --stacktrace
+        run: $GRADLE_CMD assembleRelease --stacktrace --no-daemon
 
       - name: Build release AAB
-        run: gradle bundleRelease --stacktrace
+        run: $GRADLE_CMD bundleRelease --stacktrace --no-daemon
 
-      - name: Upload Android artifacts
-        uses: actions/upload-artifact@v6
+      - name: Upload artifacts
         if: always()
+        uses: actions/upload-artifact@v6
         with:
-          name: ariai-android-builds
+          name: ariai-builds
           path: |
-            **/build/outputs/apk/debug/*.apk
-            **/build/outputs/apk/release/*.apk
-            **/build/outputs/bundle/release/*.aab
-            **/build/reports/lint-results-debug.html
+            **/build/outputs/**/*.apk
+            **/build/outputs/**/*.aab
+            **/build/reports/**/*.html
           if-no-files-found: warn
