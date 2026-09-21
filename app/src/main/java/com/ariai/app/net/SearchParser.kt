@@ -46,7 +46,7 @@ internal object SearchParser {
         val withoutNoise = body
             .replace(Regex("(?is)<(script|style|noscript|svg|nav|footer|header)[^>]*>.*?</\\1>"), " ")
             .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\\n")
-            .replace(Regex("</(p|div|li|h[1-6]|article|section)>"), "\\n", RegexOption.IGNORE_CASE)
+            .replace(Regex("</(p|div|li|h[1-6]|article|section)>", RegexOption.IGNORE_CASE), "\\n")
         return clean(withoutNoise)
             .replace(Regex("\\n\\s*\\n+"), "\\n")
             .trim()
