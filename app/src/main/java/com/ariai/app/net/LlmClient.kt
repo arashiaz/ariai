@@ -78,7 +78,7 @@ class LlmClient {
         }
     }
 
-    fun searchDuckResults(q: String, limit: Int = 5): List<SearchParser.SearchResult> {
+    internal fun searchDuckResults(q: String, limit: Int = 5): List<SearchParser.SearchResult> {
         val query = q.trim()
         if (query.isBlank() || limit <= 0) return emptyList()
         val url = "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(query, "UTF-8")
