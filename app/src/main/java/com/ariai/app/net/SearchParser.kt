@@ -2,45 +2,53 @@ package com.ariai.app.net
 
 /** Pure DuckDuckGo HTML result extraction, kept separate from networking for testability. */
 internal object SearchParser {
+    data class SearchResult(val title: String, val url: String, val snippet: String?)
+
     private val resultPattern = Regex(
-        """class="result__(a|snippet)"[^>]*>(.*?)</(?:a|td|div)>""",
+        """class=["'][^"']*result__a[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+    private val snippetPattern = Regex(
+        """class=["'][^"']*result__snippet[^"']*["'][^>]*>(.*?)</(?:td|div|span)>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
     private val tagPattern = Regex("<[^>]+>")
+    private val whitespacePattern = Regex("\\s+")
 
-    fun parse(body: String, limit: Int = 5): String {
-        if (body.isBlank() || limit <= 0) return ""
+    fun parseResults(body: String, limit: Int = 5): List<SearchResult> {
+        if (body.isBlank() || limit <= 0) return emptyList()
 
-        val results = mutableListOf<String>()
-        var title: String? = null
-        var snippet: String? = null
+        val matches = resultPattern.findAll(body).take(limit).toList()
 
-        for (match in resultPattern.findAll(body)) {
-            val kind = match.groupValues[1].lowercase()
-            val value = clean(match.groupValues[2])
-            if (value.isBlank()) continue
+        return matches.mapIndexed { index, match ->
+            val nextStart = matches.getOrNull(index + 1)?.range?.first ?: body.length
+            val block = body.substring(match.range.first, nextStart)
+            val snippet = snippetPattern.find(block)?.groupValues?.getOrNull(1)?.let(::clean)
 
-            if (kind == "a") {
-                if (title != null) {
-                    results += format(title, snippet)
-                    if (results.size >= limit) break
-                }
-                title = value
-                snippet = null
-            } else if (title != null) {
-                snippet = value
-            }
+            SearchResult(
+                title = clean(match.groupValues[2]),
+                url = decodeUrl(match.groupValues[1]),
+                snippet = snippet?.takeIf { it.isNotBlank() }
+            )
         }
-
-        if (results.size < limit && title != null) {
-            results += format(title, snippet)
-        }
-
-        return results.joinToString("\n")
+            .filter { it.title.isNotBlank() && it.url.isNotBlank() }
+            .distinctBy { it.url }
+            .toList()
     }
+
+    fun parse(body: String, limit: Int = 5): String =
+        parseResults(body, limit).joinToString("\n") { format(it.title, it.snippet) }
 
     private fun format(title: String, snippet: String?): String =
         if (snippet.isNullOrBlank()) "- $title" else "- $title: $snippet"
+
+    private fun decodeUrl(value: String): String {
+        val cleaned = clean(value)
+        val uddg = Regex("""[?&]uddg=([^&]+)""").find(cleaned)?.groupValues?.get(1)
+        return runCatching {
+            java.net.URLDecoder.decode(uddg ?: cleaned, "UTF-8")
+        }.getOrDefault(cleaned)
+    }
 
     private fun clean(value: String): String =
         value.replace(tagPattern, "")
@@ -49,6 +57,6 @@ internal object SearchParser {
             .replace("&#39;", "'", ignoreCase = true)
             .replace("&lt;", "<", ignoreCase = true)
             .replace("&gt;", ">", ignoreCase = true)
-            .replace(Regex("\\s+"), " ")
+            .replace(whitespacePattern, " ")
             .trim()
 }
