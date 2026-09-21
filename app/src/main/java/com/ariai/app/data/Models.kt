@@ -15,6 +15,21 @@ data class Provider(
     val enabled: Boolean = false
 )
 
+data class ModelProfile(
+    val id: String,
+    val providerId: String,
+    val modelId: String,
+    val displayName: String,
+    val modelType: String = "Chat",
+    val inputModalities: List<String> = listOf("Text"),
+    val outputModalities: List<String> = listOf("Text"),
+    val abilities: List<String> = emptyList(),
+    val providerOverride: String = "",
+    val headers: String = "",
+    val body: String = "",
+    val builtInTools: List<String> = emptyList()
+)
+
 data class Assistant(
     val id: String,
     val name: String,

@@ -39,6 +39,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     var mcpDraft by mutableStateOf<McpServer?>(null)
 
     var providers by mutableStateOf(store.providers())
+    var modelProfiles by mutableStateOf(store.modelProfiles())
     var assistants by mutableStateOf(store.assistants())
     var mcp by mutableStateOf(store.mcp())
     var conversations by mutableStateOf(store.conversations())
@@ -351,6 +352,51 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun addModelProfile(
+        providerId: String,
+        modelId: String,
+        displayName: String,
+        modelType: String,
+        inputModalities: List<String>,
+        outputModalities: List<String>,
+        abilities: List<String>,
+        providerOverride: String,
+        headers: String,
+        body: String,
+        builtInTools: List<String>
+    ) {
+        val profile = com.ariai.app.data.ModelProfile(
+            id = AppStore.id(),
+            providerId = providerId,
+            modelId = modelId.trim(),
+            displayName = displayName.ifBlank { modelId.trim() },
+            modelType = modelType,
+            inputModalities = inputModalities,
+            outputModalities = outputModalities,
+            abilities = abilities,
+            providerOverride = providerOverride,
+            headers = headers,
+            body = body,
+            builtInTools = builtInTools
+        )
+        val list = modelProfiles.filterNot { it.id == profile.id } + profile
+        store.saveModelProfiles(list)
+        modelProfiles = list
+        providers.find { it.id == providerId }?.let { p ->
+            if (profile.modelId.isNotBlank() && profile.modelId !in p.models) {
+                updateProvider(p.copy(models = p.models + profile.modelId, model = p.model.ifBlank { profile.modelId }))
+            }
+        }
+        snack = "Model added"
+    }
+
+    fun deleteModelProfile(id: String) {
+        val list = modelProfiles.filterNot { it.id == id }
+        store.saveModelProfiles(list)
+        modelProfiles = list
+        snack = "Model removed"
+    }
+
     fun addProvider(name: String, url: String, model: String, key: String, headers: String = "", kind: String = "openai") {
         val p = Provider(AppStore.id(), name.ifBlank { "Provider" }, url.trimEnd('/'), model, key, emptyList(), headers, kind, enabled = true)
         val list = providers + p
@@ -661,6 +707,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     private fun refresh() {
         conversations = store.conversations()
         providers = store.providers()
+        modelProfiles = store.modelProfiles()
         assistants = store.assistants()
     }
 }

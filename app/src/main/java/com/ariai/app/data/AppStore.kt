@@ -184,6 +184,39 @@ class AppStore(context: Context) {
         }
     }
 
+    fun modelProfiles(): List<ModelProfile> = parseArr("model_profiles") { o ->
+        ModelProfile(
+            id = o.getString("id"),
+            providerId = o.optString("providerId"),
+            modelId = o.optString("modelId"),
+            displayName = o.optString("displayName"),
+            modelType = o.optString("modelType", "Chat"),
+            inputModalities = o.optJSONArray("inputModalities")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: listOf("Text"),
+            outputModalities = o.optJSONArray("outputModalities")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: listOf("Text"),
+            abilities = o.optJSONArray("abilities")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList(),
+            providerOverride = o.optString("providerOverride"),
+            headers = o.optString("headers"),
+            body = o.optString("body"),
+            builtInTools = o.optJSONArray("builtInTools")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
+        )
+    }
+
+    fun saveModelProfiles(list: List<ModelProfile>) = saveArr("model_profiles", list) { x ->
+        JSONObject()
+            .put("id", x.id)
+            .put("providerId", x.providerId)
+            .put("modelId", x.modelId)
+            .put("displayName", x.displayName)
+            .put("modelType", x.modelType)
+            .put("inputModalities", JSONArray(x.inputModalities))
+            .put("outputModalities", JSONArray(x.outputModalities))
+            .put("abilities", JSONArray(x.abilities))
+            .put("providerOverride", x.providerOverride)
+            .put("headers", x.headers)
+            .put("body", x.body)
+            .put("builtInTools", JSONArray(x.builtInTools))
+    }
+
     fun assistants(): List<Assistant> {
         val list = parseArr("assistants") { o ->
             Assistant(o.getString("id"), o.getString("name"), o.optString("prompt", "You are a helpful assistant."))

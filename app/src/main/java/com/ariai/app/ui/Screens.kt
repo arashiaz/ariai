@@ -152,6 +152,7 @@ fun AriAiApp(vm: AriAiViewModel) {
                 Screen.Agents -> AgentsPage(vm)
                 Screen.Projects -> ProjectsPage(vm)
                 Screen.Models -> ModelsHubPage(vm)
+                Screen.ModelCatalog -> ModelCatalogPage(vm)
                 Screen.Settings -> SettingsPage(vm)
                 Screen.Preferences -> PrefsPage(vm)
                 Screen.General -> GeneralPage(vm)
@@ -378,7 +379,11 @@ private fun ModelsHubPage(vm: AriAiViewModel) {
     PageScaffold("Models", onBack = { vm.go(Screen.Home) }) {
         Text("Choose the provider and model that power your workspace.", color = Mute, fontSize = 13.sp)
         Spacer(Modifier.height(16.dp))
-        HubCard("Providers", "API keys, endpoints and model discovery", Icons.Filled.Person, 0, Modifier.fillMaxWidth()) {
+        HubCard("Models", "Model profiles, capabilities and tools", Icons.Filled.Star, 0, Modifier.fillMaxWidth()) {
+            vm.go(Screen.ModelCatalog)
+        }
+        Spacer(Modifier.height(10.dp))
+        HubCard("Providers", "API keys, endpoints and model discovery", Icons.Filled.Person, 1, Modifier.fillMaxWidth()) {
             vm.go(Screen.Providers)
         }
         Spacer(Modifier.height(10.dp))
@@ -891,6 +896,182 @@ private fun ExtPage(vm: AriAiViewModel) {
             SettingRow("Prompts", "Manage and use custom prompts", Icons.Filled.Info) { vm.go(Screen.Prompts) }
             SettingRow("Agent Skills", "Manage skill packages for AI to load on demand", Icons.Filled.Build) { vm.go(Screen.Skills) }
             SettingRow("Workspace", "Manage local working directories accessible by Agent", Icons.Filled.Home) { vm.go(Screen.Workspace) }
+        }
+    }
+}
+
+@Composable
+private fun ModelCatalogPage(vm: AriAiViewModel) {
+    var addOpen by remember { mutableStateOf(false) }
+    var tab by remember { mutableStateOf("Basic Settings") }
+    var providerId by remember { mutableStateOf(vm.selectedProviderId) }
+    var modelId by remember { mutableStateOf("") }
+    var displayName by remember { mutableStateOf("") }
+    var modelType by remember { mutableStateOf("Chat") }
+    var inputImage by remember { mutableStateOf(false) }
+    var outputImage by remember { mutableStateOf(false) }
+    var abilities by remember { mutableStateOf("") }
+    var providerOverride by remember { mutableStateOf("") }
+    var headers by remember { mutableStateOf("") }
+    var body by remember { mutableStateOf("") }
+    var tools by remember { mutableStateOf(setOf<String>()) }
+
+    PageScaffold("Models", onBack = { vm.go(Screen.Models) }, extra = {
+        IconBtn(Icons.Filled.Add) { addOpen = true; tab = "Basic Settings" }
+    }) {
+        Text("Model profiles", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        Text("Define capabilities and request settings independently from providers.", color = Mute, fontSize = 13.sp)
+        Spacer(Modifier.height(14.dp))
+
+        if (vm.modelProfiles.isEmpty()) {
+            GlassSurface(Modifier.fillMaxWidth(), 20, emphasized = true) {
+                Text("No custom model profiles yet.", color = Ink, fontWeight = FontWeight.Medium)
+                Text("Use + to create a model with its own capabilities and tools.", color = Mute, fontSize = 13.sp)
+            }
+        } else {
+            vm.modelProfiles.forEach { m ->
+                val provider = vm.providers.find { it.id == m.providerId }
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+                        .background(CardBg).border(1.dp, Chip, RoundedCornerShape(20.dp))
+                        .padding(15.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(AccentSoft), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Star, null, tint = Accent, modifier = Modifier.size(21.dp))
+                        }
+                        Spacer(Modifier.width(11.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(m.displayName, color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                            Text(m.modelId, color = Mute, fontSize = 12.sp)
+                            Text(provider?.name ?: "Custom provider", color = Link, fontSize = 12.sp)
+                        }
+                        Text(m.modelType, color = Accent, fontSize = 12.sp)
+                    }
+                    Spacer(Modifier.height(9.dp))
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        m.inputModalities.forEach { Text("in:$it", color = Ink, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Chip).padding(horizontal = 8.dp, vertical = 5.dp)) }
+                        m.outputModalities.forEach { Text("out:$it", color = Ink, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Chip).padding(horizontal = 8.dp, vertical = 5.dp)) }
+                        m.abilities.forEach { Text(it, color = Link, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(AccentSoft).padding(horizontal = 8.dp, vertical = 5.dp)) }
+                    }
+                    if (m.builtInTools.isNotEmpty()) {
+                        Text("Tools: " + m.builtInTools.joinToString(", "), color = Mute, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp))
+                    }
+                    Text("Remove", color = DangerInk, modifier = Modifier.align(Alignment.End).clickable { vm.deleteModelProfile(m.id) }.padding(top = 7.dp))
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+
+    if (addOpen) {
+        Overlay({ addOpen = false }) {
+            Column(
+                Modifier.fillMaxWidth().fillMaxHeight(0.88f)
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(Page).padding(horizontal = 20.dp, vertical = 12.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Handle()
+                Text("Add Model", color = Ink, fontSize = 26.sp, fontWeight = FontWeight.Medium, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth()) {
+                    Tab("Built-in Tools", tab == "Built-in Tools") { tab = "Built-in Tools" }
+                    Tab("Advanced Settings", tab == "Advanced Settings") { tab = "Advanced Settings" }
+                    Tab("Basic Settings", tab == "Basic Settings") { tab = "Basic Settings" }
+                }
+                Spacer(Modifier.height(14.dp))
+
+                when (tab) {
+                    "Basic Settings" -> {
+                        Field("Model ID", modelId) { modelId = it }
+                        Field("Model Display Name", displayName) { displayName = it }
+                        Label("Provider")
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            vm.providers.forEach { p ->
+                                Pill(p.name, providerId == p.id) { providerId = p.id }
+                            }
+                        }
+                        Label("Model Type")
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("Embedding", "Image", "Chat").forEach { t -> Pill(t, modelType == t) { modelType = t } }
+                        }
+                        Label("Input Modality")
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Pill("Image", inputImage) { inputImage = !inputImage }
+                            Pill("Text", !inputImage) { inputImage = false }
+                        }
+                        Label("Output Modality")
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Pill("Image", outputImage) { outputImage = !outputImage }
+                            Pill("Text", !outputImage) { outputImage = false }
+                        }
+                        Label("Abilities")
+                        Field("Vision, Reasoning, Function Calling...", abilities) { abilities = it }
+                    }
+                    "Advanced Settings" -> {
+                        Label("Provider Override")
+                        Text("Optional endpoint/provider settings for this specific model.", color = Mute, fontSize = 13.sp)
+                        Field("Base URL override", providerOverride) { providerOverride = it }
+                        Label("Custom Headers")
+                        Field("JSON headers", headers) { headers = it }
+                        Label("Custom Body")
+                        Field("JSON body", body) { body = it }
+                    }
+                    "Built-in Tools" -> {
+                        Label("Built-in Tools")
+                        Text("Tools are capabilities supplied by the model API. They can be enabled per model profile.", color = Mute, fontSize = 13.sp)
+                        listOf(
+                            "Google Search",
+                            "URL Context",
+                            "Code Execution",
+                            "Google Maps",
+                            "File Search"
+                        ).forEach { tool ->
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardBg)
+                                    .clickable { tools = if (tool in tools) tools - tool else tools + tool }
+                                    .padding(15.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(tool, color = Ink, fontWeight = FontWeight.Medium)
+                                    Text("Enable when supported by the selected provider/model.", color = Mute, fontSize = 12.sp)
+                                }
+                                if (tool in tools) Icon(Icons.Filled.Check, null, tint = Accent)
+                            }
+                            Spacer(Modifier.height(7.dp))
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(18.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Text("Cancel", color = Link, modifier = Modifier.clickable { addOpen = false }.padding(12.dp))
+                    Text(
+                        "Add",
+                        color = if (modelId.isBlank() || providerId.isBlank()) Mute else Accent,
+                        modifier = Modifier.clickable(enabled = modelId.isNotBlank() && providerId.isNotBlank()) {
+                            vm.addModelProfile(
+                                providerId,
+                                modelId,
+                                displayName,
+                                modelType,
+                                if (inputImage) listOf("Image", "Text") else listOf("Text"),
+                                if (outputImage) listOf("Image", "Text") else listOf("Text"),
+                                abilities.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                                providerOverride,
+                                headers,
+                                body,
+                                tools.toList()
+                            )
+                            addOpen = false
+                            modelId = ""; displayName = ""; abilities = ""; providerOverride = ""; headers = ""; body = ""; tools = emptySet()
+                        }.padding(12.dp)
+                    )
+                }
+                Spacer(Modifier.height(18.dp))
+            }
         }
     }
 }
