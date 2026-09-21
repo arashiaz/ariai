@@ -83,11 +83,17 @@ class LlmClient {
         if (query.isBlank()) return ""
         val url = "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(query, "UTF-8")
         val req = Request.Builder().url(url).header("User-Agent", "AriAi/1.0").get().build()
-        http.newCall(req).execute().use { resp ->
-            val body = resp.body?.string().orEmpty()
-            log("GET", url, resp.code, body.take(400))
-            if (!resp.isSuccessful) return ""
-            return SearchParser.parse(body)
+        val call = http.newCall(req)
+        active.set(call)
+        return try {
+            call.execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                log("GET", url, resp.code, body.take(400))
+                if (!resp.isSuccessful) return ""
+                SearchParser.parse(body)
+            }
+        } finally {
+            active.compareAndSet(call, null)
         }
     }
 
