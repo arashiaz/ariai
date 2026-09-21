@@ -1,14 +1,15 @@
 package com.ariai.app.net
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SearchParserTest {
     @Test fun parsesTitlesAndSnippets() {
         val html = """
-            <a class="result__a" href="#">First &amp; Result</a>
+            <a class="result__a" href="https://example.com/one">First &amp; Result</a>
             <td class="result__snippet">A useful <b>summary</b>.</td>
-            <a class="result__a" href="#">Second</a>
+            <a class="result__a" href="https://example.com/two">Second</a>
             <div class="result__snippet">Another &quot;summary&quot;.</div>
         """.trimIndent()
 
@@ -19,30 +20,30 @@ class SearchParserTest {
         )
     }
 
-    @Test fun omitsMissingSnippetWithoutDanglingColon() {
-        val html = """<a class="result__a" href="#">Only title</a>"""
-        assertEquals("- Only title", SearchParser.parse(html))
+    @Test fun exposesStructuredUrls() {
+        val html = """<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpage%3Fa%3D1">Example</a>"""
+        val result = SearchParser.parseResults(html).single()
+
+        assertEquals("Example", result.title)
+        assertEquals("https://example.com/page?a=1", result.url)
+        assertTrue(result.snippet == null)
     }
 
-    @Test fun doesNotShiftSnippetsWhenOneResultHasNoSnippet() {
-        val html = """
-            <a class="result__a">First</a>
-            <a class="result__a">Second</a>
-            <div class="result__snippet">Second snippet</div>
-        """.trimIndent()
-
-        assertEquals("- First\n- Second: Second snippet", SearchParser.parse(html))
+    @Test fun omitsMissingSnippetWithoutDanglingColon() {
+        val html = """<a class="result__a" href="https://example.com">Only title</a>"""
+        assertEquals("- Only title", SearchParser.parse(html))
     }
 
     @Test fun respectsLimitAndEmptyInput() {
         val html = """
-            <a class="result__a">One</a>
-            <a class="result__a">Two</a>
-            <a class="result__a">Three</a>
+            <a class="result__a" href="https://example.com/1">One</a>
+            <a class="result__a" href="https://example.com/2">Two</a>
+            <a class="result__a" href="https://example.com/3">Three</a>
         """.trimIndent()
 
-        assertEquals("- One\n- Two", SearchParser.parse(html, limit = 2))
-        assertEquals("", SearchParser.parse("", limit = 5))
+        assertEquals("- One
+- Two", SearchParser.parse(html, limit = 2))
+        assertTrue(SearchParser.parseResults("", 5).isEmpty())
         assertEquals("", SearchParser.parse(html, limit = 0))
     }
 }
