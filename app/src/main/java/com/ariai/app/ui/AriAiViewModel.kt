@@ -234,10 +234,16 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
                 val researchMode = composerMode == "Research"
                 if ((searchOn || researchMode) && msgs.lastOrNull()?.role == ChatMessage.Role.User) {
                     val q = msgs.last().text
-                    val web = withContext(Dispatchers.IO) { llm.searchDuck(q) }
+                    val results = withContext(Dispatchers.IO) {
+                        llm.searchDuckResults(q, limit = if (researchMode) 5 else 3)
+                    }
                     logs = llm.lastLogs
-                    if (web.isNotBlank()) {
+                    if (results.isNotEmpty()) {
                         val label = if (researchMode) "Research sources" else "Web search"
+                        val web = results.mapIndexed { index, result ->
+                            val snippet = result.snippet?.takeIf { it.isNotBlank() }?.let { " — $it" }.orEmpty()
+                            "[${index + 1}] ${result.title} — ${result.url}$snippet"
+                        }.joinToString("\n")
                         msgs = msgs.dropLast(1) + msgs.last().copy(text = "${msgs.last().text}\n\n$label:\n$web")
                     } else if (researchMode) {
                         msgs = msgs.dropLast(1) + msgs.last().copy(
