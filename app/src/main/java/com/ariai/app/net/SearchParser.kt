@@ -4,7 +4,7 @@ package com.ariai.app.net
 internal object SearchParser {
     private val titlePattern = Regex(
         """class="result__a"[^>]*>(.*?)</a>""",
-        RegexOption.IGNORE_CASE or RegexOption.DOT_MATCHES_ALL
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
     private val snippetPattern = Regex(
         """class="result__snippet"[^>]*>(.*?)</(?:a|td|div)>""",
