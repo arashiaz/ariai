@@ -64,6 +64,7 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     var webOn by mutableStateOf(store.bool("web_on"))
     var lastDeleted by mutableStateOf<Conversation?>(null)
     var rtl by mutableStateOf(store.bool("rtl", false))
+    var composerMode by mutableStateOf("Chat")
 
     val flags = mutableStateMapOf<String, Boolean>().apply {
         listOf(
@@ -302,6 +303,13 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun buildSystem(): String = buildString {
+        when (composerMode) {
+            "Research" -> append("You are in Research mode. Prefer current web context when available, separate verified facts from uncertainty, and clearly identify sources.\\n")
+            "Create" -> append("You are in Create mode. Produce polished, usable output and keep the response focused on the requested deliverable.\\n")
+            "Code" -> append("You are in Code mode. Prefer correct, maintainable code, explain important implementation choices briefly, and consider edge cases.\\n")
+            "Analyze" -> append("You are in Analyze mode. Break the problem into evidence, assumptions, and conclusions without overstating certainty.\\n")
+            "Agent" -> append("You are in Agent mode. Work through the task step by step, using configured tools or MCP context when appropriate.\\n")
+        }
         append(selectedAssistant?.prompt ?: "You are a helpful assistant.")
         val tools = mcp.filter { it.enabled }
         if (tools.isNotEmpty()) {
