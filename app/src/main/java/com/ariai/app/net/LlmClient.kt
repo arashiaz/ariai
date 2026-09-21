@@ -97,6 +97,26 @@ class LlmClient {
         }
     }
 
+    internal fun fetchWebPage(url: String, maxChars: Int = 12000): String {
+        val target = url.trim()
+        if (!target.startsWith("https://") && !target.startsWith("http://")) return ""
+        val req = Request.Builder().url(target).header("User-Agent", "AriAi/1.0 Research").get().build()
+        val call = http.newCall(req)
+        active.set(call)
+        return try {
+            call.execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                log("GET", target, resp.code, body.take(400))
+                if (!resp.isSuccessful) return ""
+                SearchParser.extractText(body, maxChars)
+            }
+        } catch (_: Exception) {
+            ""
+        } finally {
+            active.compareAndSet(call, null)
+        }
+    }
+
     fun searchDuck(q: String): String =
         searchDuckResults(q).joinToString("\n") {
             if (it.snippet.isNullOrBlank()) "- ${it.title}" else "- ${it.title}: ${it.snippet}"
