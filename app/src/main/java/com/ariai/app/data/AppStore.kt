@@ -91,6 +91,18 @@ class AppStore(context: Context) {
             list.isEmpty() -> catalog()
             extra.isNotEmpty() -> extra + list
             else -> list
+        }.map { provider ->
+            // Gemini 2.0 Flash was shut down by Google on June 1, 2026.
+            // Migrate the bundled default and any previously saved Gemini
+            // selection so Test/Chat do not target a retired model.
+            if (provider.id == "gemini" &&
+                (provider.model == "gemini-2.0-flash" || provider.model == "gemini-1.5-pro" || provider.model == "gemini-1.5-flash")
+            ) {
+                provider.copy(
+                    model = "gemini-3.5-flash",
+                    models = listOf("gemini-3.5-flash", "gemini-3.1-flash-lite")
+                )
+            } else provider
         }
 
         // One-time migration: old versions stored credentials directly in JSON.
@@ -116,8 +128,8 @@ class AppStore(context: Context) {
                 listOf("claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"), kind = "anthropic"
             ),
             Provider(
-                "gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta", "gemini-2.0-flash", "",
-                listOf("gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"), kind = "gemini"
+                "gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta", "gemini-3.5-flash", "",
+                listOf("gemini-3.5-flash", "gemini-3.1-flash-lite"), kind = "gemini"
             ),
             Provider(
                 "openrouter", "OpenRouter", "https://openrouter.ai/api/v1", "openai/gpt-4o-mini", "",
