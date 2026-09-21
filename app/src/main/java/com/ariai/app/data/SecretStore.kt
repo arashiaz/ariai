@@ -40,10 +40,13 @@ class SecretStore(context: Context) {
             remove(id)
             return
         }
-        val iv = ByteArray(IV_LENGTH)
-        java.security.SecureRandom().nextBytes(iv)
+        // Android Keystore owns the GCM IV for encryption. Supplying a caller-
+        // generated IV can be rejected by newer KeyMint/Keystore implementations
+        // with "Caller-provided IV not permitted". Read the generated IV back from
+        // the cipher and store it alongside the ciphertext for decryption.
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, key(), GCMParameterSpec(TAG_BITS, iv))
+        cipher.init(Cipher.ENCRYPT_MODE, key())
+        val iv = cipher.iv
         val encrypted = cipher.doFinal(value.toByteArray(StandardCharsets.UTF_8))
         val packed = ByteArray(iv.size + encrypted.size)
         System.arraycopy(iv, 0, packed, 0, iv.size)
