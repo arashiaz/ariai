@@ -71,7 +71,7 @@ class LlmClient {
             val body = resp.body?.string().orEmpty()
             log("GET", url, resp.code, body)
             if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(400)}")
-            return parseModelIds(p.kind, body)
+            return LlmJson.parseModelIds(body)
         }
         } finally {
             active.compareAndSet(call, null)
