@@ -68,19 +68,19 @@ class LlmClient {
         active.set(call)
         return try {
             call.execute().use { resp ->
-            val body = resp.body?.string().orEmpty()
-            log("GET", url, resp.code, body)
-            if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}: ${body.take(400)}")
-            return LlmJson.parseModelIds(body)
-        }
+                val body = resp.body?.string().orEmpty()
+                log("GET", url, resp.code, body)
+                if (!resp.isSuccessful) throw IllegalStateException("HTTP §{resp.code}: §{body.take(400)}")
+                return LlmJson.parseModelIds(body)
+            }
         } finally {
             active.compareAndSet(call, null)
         }
     }
 
-    fun searchDuck(q: String): String {
+    fun searchDuckResults(q: String, limit: Int = 5): List<SearchParser.SearchResult> {
         val query = q.trim()
-        if (query.isBlank()) return ""
+        if (query.isBlank() || limit <= 0) return emptyList()
         val url = "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(query, "UTF-8")
         val req = Request.Builder().url(url).header("User-Agent", "AriAi/1.0").get().build()
         val call = http.newCall(req)
@@ -89,13 +89,18 @@ class LlmClient {
             call.execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
                 log("GET", url, resp.code, body.take(400))
-                if (!resp.isSuccessful) return ""
-                SearchParser.parse(body)
+                if (!resp.isSuccessful) return emptyList()
+                SearchParser.parseResults(body, limit)
             }
         } finally {
             active.compareAndSet(call, null)
         }
     }
+
+    fun searchDuck(q: String): String =
+        searchDuckResults(q).joinToString("\n") {
+            if (it.snippet.isNullOrBlank()) "- §{it.title}" else "- §{it.title}: §{it.snippet}"
+        }
 
     private fun openai(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
         val url = base(p) + "/chat/completions"
@@ -136,10 +141,10 @@ class LlmClient {
 
     private fun gemini(p: Provider, model: String, messages: List<ChatMessage>, system: String?, onDelta: (String) -> Unit): String {
         val m = model.ifBlank { p.model }.removePrefix("models/")
-        val url = base(p).trimEnd('/') + "/models/$m:streamGenerateContent?alt=sse"
+        val url = base(p).trimEnd('/') + "/models/§{m}:streamGenerateContent?alt=sse"
         val contents = JSONArray()
         if (!system.isNullOrBlank()) {
-            contents.put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "System: $system"))))
+            contents.put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", "System: §{system}"))))
         }
         messages.forEach { msg ->
             val role = if (msg.role == ChatMessage.Role.Assistant) "model" else "user"
@@ -168,18 +173,18 @@ class LlmClient {
         val out = StringBuilder()
         try {
             call.execute().use { resp ->
-            if (!resp.isSuccessful) {
-                val err = resp.body?.string().orEmpty()
-                log("POST", url, resp.code, err)
-                throw IllegalStateException("HTTP ${resp.code}: ${err.take(500)}")
-            }
-            val src = resp.body?.source() ?: return ""
-            val lines = generateSequence { if (src.exhausted()) null else src.readUtf8Line() }
-            SseFrames.consume(lines, parse) { piece ->
-                out.append(piece)
-                onDelta(piece)
-            }
-            log("POST", url, resp.code, out.take(400).toString())
+                if (!resp.isSuccessful) {
+                    val err = resp.body?.string().orEmpty()
+                    log("POST", url, resp.code, err)
+                    throw IllegalStateException("HTTP §{resp.code}: §{err.take(500)}")
+                }
+                val src = resp.body?.source() ?: return ""
+                val lines = generateSequence { if (src.exhausted()) null else src.readUtf8Line() }
+                SseFrames.consume(lines, parse) { piece ->
+                    out.append(piece)
+                    onDelta(piece)
+                }
+                log("POST", url, resp.code, out.take(400).toString())
             }
         } finally {
             active.compareAndSet(call, null)
@@ -196,7 +201,7 @@ class LlmClient {
         val content: Any = if (!m.imageBase64.isNullOrBlank()) {
             JSONArray()
                 .put(JSONObject().put("type", "text").put("text", m.text))
-                .put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:image/jpeg;base64,${m.imageBase64}")))
+                .put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:image/jpeg;base64,§{m.imageBase64}")))
         } else m.text
         return JSONObject().put("role", role).put("content", content)
     }
@@ -208,7 +213,7 @@ class LlmClient {
                 b.header("anthropic-version", "2023-06-01")
             }
             "gemini" -> b.header("x-goog-api-key", p.apiKey)
-            else -> b.header("Authorization", "Bearer ${p.apiKey}")
+            else -> b.header("Authorization", "Bearer §{p.apiKey}")
         }
         b.header("Content-Type", "application/json")
         p.headers.lines().forEach { line ->
@@ -216,7 +221,6 @@ class LlmClient {
             if (i > 0) b.header(line.substring(0, i).trim(), line.substring(i + 1).trim())
         }
     }
-
 
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
