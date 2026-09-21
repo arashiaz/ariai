@@ -79,7 +79,7 @@ fun GlassSurface(
 
     if (onClick != null) m = m.clickable(onClick = onClick)
 
-    Box(m) { content() }
+    Column(m) { content() }
 }
 
 @Composable
