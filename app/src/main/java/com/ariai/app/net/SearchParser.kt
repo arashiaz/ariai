@@ -20,7 +20,7 @@ internal object SearchParser {
             .take(limit)
             .toList()
         val snippets = snippetPattern.findAll(body)
-            .map { clean(it.groupValues[1]) }
+            .map { match -> clean(match.groupValues[1]) }
             .take(limit)
             .toList()
 
