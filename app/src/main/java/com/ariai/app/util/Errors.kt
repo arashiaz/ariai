@@ -10,7 +10,7 @@ object Errors {
         if (api != null) {
             val (code, status, reason, message) = api
             val label = reason?.takeIf { it.isNotBlank() } ?: status?.takeIf { it.isNotBlank() } ?: "API_ERROR"
-            val detail = message?.takeIf { it.isNotBlank() }?.let { ": ${it.take(220)}" }.orEmpty()
+            val detail = message?.takeIf { it.isNotBlank() }?.let { ": \${it.take(220)}" }.orEmpty()
             return "Gemini/API error $code $label$detail"
         }
         return when {
@@ -36,7 +36,8 @@ object Errors {
     }
 
     private fun parseApiError(raw: String): ApiError? {
-        val http = Regex("""HTTP\\s+(\\d{3})""", RegexOption.IGNORE_CASE).find(raw)?.groupValues?.get(1)?.toIntOrNull()
+        val http = Regex("""HTTP\s+(\d{3})""", RegexOption.IGNORE_CASE)
+            .find(raw)?.groupValues?.get(1)?.toIntOrNull()
         val jsonStart = raw.indexOf('{')
         if (jsonStart < 0) return http?.let { ApiError(it, null, null, null) }
 
@@ -71,14 +72,14 @@ object Errors {
 
     fun redact(s: String): String =
         s.replace(
-            Regex("""(?i)(api[_-]?key|authorization|bearer|x-api-key|x-goog-api-key)\\s*[:=]\\s*"?[^,;\\s}\\"']+"""),
+            Regex("""(?i)(api[_-]?key|authorization|bearer|x-api-key|x-goog-api-key)\s*[:=]\s*"?[^,;\s}\"']+"""),
             "$1=***"
         )
             .replace(
-                Regex("""(?i)(\"(?:api[_-]?key|authorization|x-api-key|x-goog-api-key)\"\\s*:\\s*)\"[^\"]*(\")"""),
-                "$1\"***\""
+                Regex("""(?i)("(?:api[_-]?key|authorization|x-api-key|x-goog-api-key)"\s*:\s*")[^"]*(")"""),
+                "$1***$2"
             )
-            .replace(Regex("""(?i)([?&](?:api[_-]?key|key|token|access_token|authorization)=)[^&\\s]+"""), "$1***")
+            .replace(Regex("""(?i)([?&](?:api[_-]?key|key|token|access_token|authorization)=)[^&\s]+"""), "$1***")
             .replace(Regex("""sk-[A-Za-z0-9]{8,}"""), "sk-***")
-            .replace(Regex("""(?i)AQ\\.[A-Za-z0-9._~-]{8,}"""), "AQ.***")
+            .replace(Regex("""(?i)AQ\.[A-Za-z0-9._~-]{8,}"""), "AQ.***")
 }
