@@ -39,6 +39,20 @@ internal object SearchParser {
     fun parse(body: String, limit: Int = 5): String =
         parseResults(body, limit).joinToString("\n") { format(it.title, it.snippet) }
 
+
+    /** Extracts a bounded plain-text view of a fetched HTML page for Research context. */
+    fun extractText(body: String, maxChars: Int = 12000): String {
+        if (body.isBlank() || maxChars <= 0) return ""
+        val withoutNoise = body
+            .replace(Regex("(?is)<(script|style|noscript|svg|nav|footer|header)[^>]*>.*?</\\1>"), " ")
+            .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\\n")
+            .replace(Regex("</(p|div|li|h[1-6]|article|section)>"), "\\n", RegexOption.IGNORE_CASE)
+        return clean(withoutNoise)
+            .replace(Regex("\\n\\s*\\n+"), "\\n")
+            .trim()
+            .take(maxChars)
+    }
+
     private fun format(title: String, snippet: String?): String =
         if (snippet.isNullOrBlank()) "- $title" else "- $title: $snippet"
 
