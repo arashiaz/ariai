@@ -235,17 +235,20 @@ private fun HomePage(vm: AriAiViewModel) {
         }
 
         Spacer(Modifier.height(20.dp))
-        Text("Work modes", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Text("Workspace", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Spacer(Modifier.height(10.dp))
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            WorkspaceCard("Research", "Search + sources", Icons.Filled.Search, Modifier.weight(1f)) { vm.go(Screen.Research) }
-            WorkspaceCard("Create", "Write + files", Icons.Filled.Edit, Modifier.weight(1f)) { vm.go(Screen.Projects) }
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            WorkspaceCard("Agents", "Instructions + tools", Icons.Filled.Build, Modifier.weight(1f)) { vm.go(Screen.Agents) }
-            WorkspaceCard("Models", "Providers + models", Icons.Filled.Star, Modifier.weight(1f)) { vm.go(Screen.Models) }
+        GlassSurface(Modifier.fillMaxWidth(), 22, emphasized = true) {
+            Text("Choose how AriAi should help.", color = Mute, fontSize = 13.sp)
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                WorkspaceCard("Research", "Sources", Icons.Filled.Search, Modifier.weight(1f)) { vm.go(Screen.Research) }
+                WorkspaceCard("Create", "Files", Icons.Filled.Edit, Modifier.weight(1f)) { vm.go(Screen.Projects) }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                WorkspaceCard("Agents", "Tools", Icons.Filled.Build, Modifier.weight(1f)) { vm.go(Screen.Agents) }
+                WorkspaceCard("Models", "Providers", Icons.Filled.Star, Modifier.weight(1f)) { vm.go(Screen.Models) }
+            }
         }
 
         Spacer(Modifier.height(22.dp))
