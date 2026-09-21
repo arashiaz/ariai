@@ -79,17 +79,15 @@ class LlmClient {
     }
 
     fun searchDuck(q: String): String {
-        val url = "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(q, "UTF-8")
+        val query = q.trim()
+        if (query.isBlank()) return ""
+        val url = "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(query, "UTF-8")
         val req = Request.Builder().url(url).header("User-Agent", "AriAi/1.0").get().build()
         http.newCall(req).execute().use { resp ->
             val body = resp.body?.string().orEmpty()
             log("GET", url, resp.code, body.take(400))
             if (!resp.isSuccessful) return ""
-            val titleList = Regex("class=\"result__a\"[^>]*>(.*?)</a>", RegexOption.IGNORE_CASE)
-                .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.filter { it.isNotBlank() }.take(5).toList()
-            val snipList = Regex("class=\"result__snippet\"[^>]*>(.*?)</(?:a|td|div)", RegexOption.IGNORE_CASE)
-                .findAll(body).map { it.groupValues[1].replace(Regex("<[^>]+>"), "").trim() }.take(5).toList()
-            return titleList.mapIndexed { i, t -> "- $t: ${snipList.getOrNull(i).orEmpty()}" }.joinToString("\n")
+            return SearchParser.parse(body)
         }
     }
 
@@ -221,8 +219,6 @@ class LlmClient {
         }
     }
 
-    private fun parseModelIds(kind: String, body: String): List<String> =
-        LlmJson.parseModelIds(body)
 
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
