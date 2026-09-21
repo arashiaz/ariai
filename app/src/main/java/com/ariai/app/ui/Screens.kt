@@ -929,78 +929,168 @@ private fun ModelPick(title: String, hint: String, id: String, vm: AriAiViewMode
 
 @Composable
 private fun ProvidersPage(vm: AriAiViewModel) {
+    var expandedProvider by remember { mutableStateOf<String?>(null) }
+    var addOpen by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("https://api.openai.com/v1") }
     var model by remember { mutableStateOf("") }
     var key by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf("openai") }
+
     PageScaffold("AI Providers", onBack = { vm.go(Screen.Home) }) {
-        Text("Connect and use the best models", color = Mute, fontSize = 13.sp)
-        Spacer(Modifier.height(8.dp))
+        Text("Choose a provider. Tap one to view its models and settings.", color = Mute, fontSize = 13.sp)
+        Spacer(Modifier.height(12.dp))
+
         vm.providers.forEach { p ->
-            var key by remember(p.id) { mutableStateOf(p.apiKey) }
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardBg).padding(14.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val expanded = expandedProvider == p.id
+            var providerKey by remember(p.id) { mutableStateOf(p.apiKey) }
+
+            Column(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardBg)
+                    .border(1.dp, if (expanded) Accent else Chip, RoundedCornerShape(18.dp))
+            ) {
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable { expandedProvider = if (expanded) null else p.id }
+                        .padding(15.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
-                        Modifier.size(44.dp).clip(CircleShape).background(
+                        Modifier.size(42.dp).clip(CircleShape).background(
                             when (p.kind) {
                                 "anthropic" -> Color(0xFFD4A574)
                                 "gemini" -> Color(0xFF4285F4)
+                                "deepseek" -> Color(0xFF4C6FFF)
+                                "groq" -> Color(0xFFF55036)
                                 else -> Accent
                             }
                         ),
                         contentAlignment = Alignment.Center
-                    ) { Text(p.name.take(1), color = Color.White, fontWeight = FontWeight.Bold) }
-                    Spacer(Modifier.width(10.dp))
+                    ) {
+                        Text(p.name.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(p.name, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 16.sp)
-                        Text((p.models.take(3).ifEmpty { listOf(p.model) }).filter { it.isNotBlank() }.joinToString(", ").ifBlank { p.baseUrl.take(28) }, color = Mute, fontSize = 12.sp)
-                        if (p.lastOk.isNotBlank()) Text("Last OK · ${p.lastOk.take(40)}", color = Accent, fontSize = 11.sp)
+                        Text(
+                            if (p.models.isNotEmpty()) p.models.size.toString() + " models" else "No models loaded",
+                            color = Mute,
+                            fontSize = 12.sp
+                        )
                     }
-                    Switch(p.enabled && p.apiKey.isNotBlank(), { on ->
-                        if (on && p.apiKey.isBlank()) vm.snack = "Add an API key first"
-                        else vm.setProviderOn(p.id, on)
-                    }, colors = SwitchDefaults.colors(checkedTrackColor = Accent))
+                    Text(if (expanded) "⌃" else "⌄", color = Mute, fontSize = 20.sp)
                 }
-                Field("API key", key) { key = it }
-                if (key != p.apiKey) {
-                    Text("Save key", color = Link, modifier = Modifier.clickable { vm.updateProvider(p.copy(apiKey = key, enabled = key.isNotBlank())); vm.snack = "Key saved" }.padding(8.dp))
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Text("Use", color = Link, modifier = Modifier.clickable { vm.selectProvider(p.id) }.padding(8.dp))
-                    Text("Fetch", color = Link, modifier = Modifier.clickable { vm.fetchModels(p.id) }.padding(8.dp))
-                    Text("Test", color = Link, modifier = Modifier.clickable { vm.testProvider(p.id) }.padding(8.dp))
-                    if (p.id.length > 12) Text("Delete", color = DangerInk, modifier = Modifier.clickable { vm.removeProvider(p.id) }.padding(8.dp))
-                }
-                p.models.take(10).forEach { m ->
-                    Text(
-                        m,
-                        color = if (m == p.model) Accent else Mute,
-                        fontSize = 13.sp,
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (m == p.model) AccentSoft else Color.Transparent).clickable { vm.selectProvider(p.id); vm.selectModel(m) }.padding(6.dp),
-                        textAlign = TextAlign.End
-                    )
+
+                if (expanded) {
+                    Column(Modifier.fillMaxWidth().padding(start = 15.dp, end = 15.dp, bottom = 15.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Switch(
+                                p.enabled && p.apiKey.isNotBlank(),
+                                { on ->
+                                    if (on && p.apiKey.isBlank()) vm.snack = "Add an API key first"
+                                    else vm.setProviderOn(p.id, on)
+                                },
+                                colors = SwitchDefaults.colors(checkedTrackColor = Accent)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (p.enabled) "Enabled" else "Disabled", color = Mute, fontSize = 12.sp)
+                            Spacer(Modifier.weight(1f))
+                            Text("Use", color = Link, modifier = Modifier.clickable { vm.selectProvider(p.id) }.padding(8.dp))
+                            Text("Fetch", color = Link, modifier = Modifier.clickable { vm.fetchModels(p.id) }.padding(8.dp))
+                            Text("Test", color = Link, modifier = Modifier.clickable { vm.testProvider(p.id) }.padding(8.dp))
+                        }
+
+                        Text("Models", color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp, bottom = 6.dp))
+                        if (p.models.isEmpty()) {
+                            Text("No models loaded yet. Tap Fetch.", color = Mute, fontSize = 12.sp)
+                        } else {
+                            p.models.forEach { m ->
+                                Row(
+                                    Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (m == p.model) AccentSoft else Color.Transparent)
+                                        .clickable { vm.selectProvider(p.id); vm.selectModel(m) }
+                                        .padding(horizontal = 10.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (m == p.model) {
+                                        Icon(Icons.Filled.Check, null, tint = Accent, modifier = Modifier.size(17.dp))
+                                        Spacer(Modifier.width(7.dp))
+                                    }
+                                    Text(m, color = if (m == p.model) Accent else Ink, fontSize = 13.sp)
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(6.dp))
+                        Text("API key", color = Mute, fontSize = 12.sp)
+                        Field("API key", providerKey) { providerKey = it }
+                        if (providerKey != p.apiKey) {
+                            Text(
+                                "Save key",
+                                color = Link,
+                                modifier = Modifier.clickable {
+                                    vm.updateProvider(p.copy(apiKey = providerKey, enabled = providerKey.isNotBlank()))
+                                    vm.snack = "Key saved"
+                                }.padding(8.dp)
+                            )
+                        }
+
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            if (p.lastOk.isNotBlank()) {
+                                Text("Last OK · " + p.lastOk.take(40), color = Accent, fontSize = 11.sp, modifier = Modifier.padding(8.dp))
+                            }
+                            if (p.id.length > 12) {
+                                Text("Delete", color = DangerInk, modifier = Modifier.clickable { vm.removeProvider(p.id) }.padding(8.dp))
+                            }
+                        }
+                    }
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
         }
-        SectionLabel("Add provider")
-        Field("Name", name) { name = it }
-        Field("Base URL", url) { url = it }
-        Field("Model id (optional)", model) { model = it }
-        Field("API key", key) { key = it }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Pill("OpenAI", kind == "openai") { kind = "openai" }
-            Spacer(Modifier.width(6.dp))
-            Pill("Anthropic", kind == "anthropic") { kind = "anthropic" }
-            Spacer(Modifier.width(6.dp))
-            Pill("Gemini", kind == "gemini") { kind = "gemini" }
+
+        Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(CardBg)
+                .border(1.dp, Chip, RoundedCornerShape(18.dp))
+                .clickable { addOpen = !addOpen }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Add, null, tint = Accent)
+            Spacer(Modifier.width(10.dp))
+            Text("Add provider", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(if (addOpen) "⌃" else "⌄", color = Mute, fontSize = 20.sp)
         }
-        PrimaryBtn(if (vm.fetching) "Working…" else "Save") {
-            if (name.isNotBlank() && url.isNotBlank() && key.isNotBlank()) {
-                vm.addProvider(name, url, model, key, "", kind)
-                name = ""; model = ""; key = ""
-            } else vm.snack = "Name, URL and API key are required"
+
+        if (addOpen) {
+            Spacer(Modifier.height(8.dp))
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardBg).padding(14.dp)
+            ) {
+                Field("Name", name) { name = it }
+                Field("Base URL", url) { url = it }
+                Field("Model id (optional)", model) { model = it }
+                Field("API key", key) { key = it }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Pill("OpenAI", kind == "openai") { kind = "openai" }
+                    Spacer(Modifier.width(6.dp))
+                    Pill("Anthropic", kind == "anthropic") { kind = "anthropic" }
+                    Spacer(Modifier.width(6.dp))
+                    Pill("Gemini", kind == "gemini") { kind = "gemini" }
+                }
+                PrimaryBtn(if (vm.fetching) "Working…" else "Save") {
+                    if (name.isNotBlank() && url.isNotBlank() && key.isNotBlank()) {
+                        vm.addProvider(name, url, model, key, "", kind)
+                        name = ""; model = ""; key = ""; addOpen = false
+                    } else vm.snack = "Name, URL and API key are required"
+                }
+            }
         }
     }
 }
