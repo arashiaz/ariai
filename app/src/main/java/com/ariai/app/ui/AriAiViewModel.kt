@@ -231,12 +231,18 @@ class AriAiViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val sys = buildSystem()
                 var msgs = conv.messages
-                if (searchOn && msgs.lastOrNull()?.role == ChatMessage.Role.User) {
+                val researchMode = composerMode == "Research"
+                if ((searchOn || researchMode) && msgs.lastOrNull()?.role == ChatMessage.Role.User) {
                     val q = msgs.last().text
                     val web = withContext(Dispatchers.IO) { llm.searchDuck(q) }
                     logs = llm.lastLogs
                     if (web.isNotBlank()) {
-                        msgs = msgs.dropLast(1) + msgs.last().copy(text = "${msgs.last().text}\n\nWeb search:\n$web")
+                        val label = if (researchMode) "Research sources" else "Web search"
+                        msgs = msgs.dropLast(1) + msgs.last().copy(text = "${msgs.last().text}\n\n$label:\n$web")
+                    } else if (researchMode) {
+                        msgs = msgs.dropLast(1) + msgs.last().copy(
+                            text = "${msgs.last().text}\n\nResearch note: live web search returned no usable results. Do not invent sources."
+                        )
                     }
                 }
                 val model = p.model.ifBlank { chatModel.ifBlank { p.models.firstOrNull().orEmpty() } }
