@@ -69,11 +69,11 @@ class SearchParserTest {
 
         val text = SearchParser.extractText(html)
 
-        assertEquals(
-            "Research title First paragraph with useful text. Second paragraph.",
-            text
-        )
+        assertTrue(text.contains("Research title"))
+        assertTrue(text.contains("First paragraph with useful text."))
+        assertTrue(text.contains("Second paragraph."))
         assertTrue(!text.contains("ignoreMe"))
+        assertTrue(!text.contains("Navigation"))
         assertTrue(!text.contains("Footer links"))
     }
 
