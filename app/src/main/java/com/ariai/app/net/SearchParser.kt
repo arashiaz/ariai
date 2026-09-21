@@ -61,3 +61,4 @@ internal object SearchParser {
             .replace(whitespacePattern, " ")
             .trim()
 }
+
