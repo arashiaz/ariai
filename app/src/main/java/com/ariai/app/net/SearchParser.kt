@@ -2,33 +2,45 @@ package com.ariai.app.net
 
 /** Pure DuckDuckGo HTML result extraction, kept separate from networking for testability. */
 internal object SearchParser {
-    private val titlePattern = Regex(
-        """class="result__a"[^>]*>(.*?)</a>""",
-        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
-    )
-    private val snippetPattern = Regex(
-        """class="result__snippet"[^>]*>(.*?)</(?:a|td|div)>""",
+    private val resultPattern = Regex(
+        """class="result__(a|snippet)"[^>]*>(.*?)</(?:a|td|div)>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
     private val tagPattern = Regex("<[^>]+>")
 
     fun parse(body: String, limit: Int = 5): String {
         if (body.isBlank() || limit <= 0) return ""
-        val titles = titlePattern.findAll(body)
-            .map { match -> clean(match.groupValues[1]) }
-            .filter(String::isNotBlank)
-            .take(limit)
-            .toList()
-        val snippets = snippetPattern.findAll(body)
-            .map { match -> clean(match.groupValues[1]) }
-            .take(limit)
-            .toList()
 
-        return titles.mapIndexed { index, title ->
-            val snippet = snippets.getOrNull(index).orEmpty()
-            if (snippet.isBlank()) "- $title" else "- $title: $snippet"
-        }.joinToString("\n")
+        val results = mutableListOf<String>()
+        var title: String? = null
+        var snippet: String? = null
+
+        for (match in resultPattern.findAll(body)) {
+            val kind = match.groupValues[1].lowercase()
+            val value = clean(match.groupValues[2])
+            if (value.isBlank()) continue
+
+            if (kind == "a") {
+                if (title != null) {
+                    results += format(title, snippet)
+                    if (results.size >= limit) break
+                }
+                title = value
+                snippet = null
+            } else if (title != null) {
+                snippet = value
+            }
+        }
+
+        if (results.size < limit && title != null) {
+            results += format(title, snippet)
+        }
+
+        return results.joinToString("\n")
     }
+
+    private fun format(title: String, snippet: String?): String =
+        if (snippet.isNullOrBlank()) "- $title" else "- $title: $snippet"
 
     private fun clean(value: String): String =
         value.replace(tagPattern, "")
