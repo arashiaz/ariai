@@ -21,7 +21,7 @@ object Errors {
             m.contains("402") ->
                 "Payment required (402). Check billing or prepay credits for this project."
             m.contains("429") ->
-                "Rate limit or quota exceeded (429). Wait a moment or check the provider quota."
+                "Too many requests or quota exceeded (429). Wait a moment or check the provider quota."
             m.contains("404") ->
                 "Not found (404). Check the base URL and model ID."
             m.contains("400") ->
@@ -39,7 +39,7 @@ object Errors {
         val http = Regex("""HTTP\s+(\d{3})""", RegexOption.IGNORE_CASE)
             .find(raw)?.groupValues?.get(1)?.toIntOrNull()
         val jsonStart = raw.indexOf('{')
-        if (jsonStart < 0) return http?.let { ApiError(it, null, null, null) }
+        if (jsonStart < 0) return null
 
         return try {
             val root = JSONObject(raw.substring(jsonStart))
